@@ -14,11 +14,10 @@ generator client {
 
 // ==========================
 // PostgreSQL Datasource
-// Prisma 7 reads DATABASE_URL
-// from prisma.config.ts
 // ==========================
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ==========================
