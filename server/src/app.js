@@ -7,7 +7,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Test Route
+// Health Check Route
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
