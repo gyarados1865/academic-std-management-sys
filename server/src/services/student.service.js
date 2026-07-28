@@ -1,14 +1,84 @@
 import bcrypt from "bcrypt";
 import prisma from "../prisma/prismaClient.js";
 
-export const getAllStudents = async () => {
-  return await prisma.student.findMany({
-    include: {
-      user: true,
-      department: true,
+export const getAllStudents = async (query = {}) => {
+  const page = Math.max(1, Number(query.page) || 1);
+  const limit = Math.max(1, Number(query.limit) || 10);
+  const search = query.search?.trim();
+  const departmentId = query.departmentId?.trim();
+  const sortBy = query.sortBy || "createdAt";
+  const sortOrder = query.sortOrder === "asc" ? "asc" : "desc";
+
+  const where = {};
+
+  if (search) {
+    where.OR = [
+      {
+        registrationNumber: {
+          contains: search,
+          mode: "insensitive",
+        },
+      },
+      {
+        user: {
+          name: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+      },
+      {
+        user: {
+          email: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+      },
+    ];
+  }
+
+  if (departmentId) {
+    where.departmentId = departmentId;
+  }
+
+  const orderBy = {};
+
+  if (sortBy === "name") {
+    orderBy.user = {
+      name: sortOrder,
+    };
+  } else if (sortBy === "registrationNumber") {
+    orderBy.registrationNumber = sortOrder;
+  } else {
+    orderBy.createdAt = sortOrder;
+  }
+
+  const [students, total] = await Promise.all([
+    prisma.student.findMany({
+      where,
+      orderBy,
+      skip: (page - 1) * limit,
+      take: limit,
+      include: {
+        user: true,
+        department: true,
+      },
+    }),
+    prisma.student.count({ where }),
+  ]);
+
+  return {
+    students,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
     },
-  });
+  };
 };
+
 export const getStudentById = async (id) => {
   return await prisma.student.findUnique({
     where: { id },
