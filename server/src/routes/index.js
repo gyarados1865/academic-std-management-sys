@@ -3,6 +3,7 @@ import express from "express";
 import authRoutes from "./auth.routes.js";
 import courseRoutes from "./course.routes.js";
 import departmentRoutes from "./department.routes.js";
+import enrollmentRoutes from "./enrollment.routes.js";
 import semesterRoutes from "./semester.routes.js";
 import studentRoutes from "./student.routes.js";
 import subjectRoutes from "./subject.routes.js";
@@ -17,5 +18,6 @@ router.use("/departments", departmentRoutes);
 router.use("/courses", courseRoutes);
 router.use("/semesters", semesterRoutes);
 router.use("/subjects", subjectRoutes);
+router.use("/enrollments", enrollmentRoutes);
 
 export default router;
