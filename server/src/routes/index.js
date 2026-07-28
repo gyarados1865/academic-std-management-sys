@@ -3,6 +3,7 @@ import express from "express";
 import attendanceRoutes from "./attendance.routes.js";
 import authRoutes from "./auth.routes.js";
 import courseRoutes from "./course.routes.js";
+import dashboardRoutes from "./dashboard.routes.js";
 import departmentRoutes from "./department.routes.js";
 import enrollmentRoutes from "./enrollment.routes.js";
 import resultRoutes from "./result.routes.js";
@@ -23,5 +24,6 @@ router.use("/subjects", subjectRoutes);
 router.use("/enrollments", enrollmentRoutes);
 router.use("/attendances", attendanceRoutes);
 router.use("/results", resultRoutes);
+router.use("/dashboard", dashboardRoutes);
 
 export default router;
