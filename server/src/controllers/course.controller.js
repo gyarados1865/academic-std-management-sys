@@ -2,12 +2,12 @@ import * as courseService from "../services/course.service.js";
 
 export const getAllCourses = async (req, res, next) => {
   try {
-    const courses = await courseService.getAllCourses();
+    const result = await courseService.getAllCourses(req.query);
 
     res.status(200).json({
       success: true,
-      count: courses.length,
-      data: courses,
+      pagination: result.pagination,
+      data: result.courses,
     });
   } catch (error) {
     next(error);

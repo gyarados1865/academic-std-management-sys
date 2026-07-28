@@ -2,12 +2,12 @@ import * as subjectService from "../services/subject.service.js";
 
 export const getAllSubjects = async (req, res, next) => {
   try {
-    const subjects = await subjectService.getAllSubjects();
+    const result = await subjectService.getAllSubjects(req.query);
 
     res.status(200).json({
       success: true,
-      count: subjects.length,
-      data: subjects,
+      pagination: result.pagination,
+      data: result.subjects,
     });
   } catch (error) {
     next(error);

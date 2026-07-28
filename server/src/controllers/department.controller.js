@@ -2,12 +2,12 @@ import * as departmentService from "../services/department.service.js";
 
 export const getAllDepartments = async (req, res, next) => {
   try {
-    const departments = await departmentService.getAllDepartments();
+    const result = await departmentService.getAllDepartments(req.query);
 
     res.status(200).json({
       success: true,
-      count: departments.length,
-      data: departments,
+      pagination: result.pagination,
+      data: result.departments,
     });
   } catch (error) {
     next(error);

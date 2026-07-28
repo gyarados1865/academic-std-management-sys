@@ -1,13 +1,65 @@
 import prisma from "../prisma/prismaClient.js";
 
-export const getAllDepartments = async () => {
-  return await prisma.department.findMany({
-    include: {
-      teachers: true,
-      students: true,
-      courses: true,
+export const getAllDepartments = async (query = {}) => {
+  const page = Math.max(1, Number(query.page) || 1);
+  const limit = Math.max(1, Number(query.limit) || 10);
+  const search = query.search?.trim();
+  const sortBy = query.sortBy || "createdAt";
+  const sortOrder = query.sortOrder === "asc" ? "asc" : "desc";
+
+  const where = {};
+
+  if (search) {
+    where.OR = [
+      {
+        name: {
+          contains: search,
+          mode: "insensitive",
+        },
+      },
+      {
+        code: {
+          contains: search,
+          mode: "insensitive",
+        },
+      },
+    ];
+  }
+
+  const orderBy = {};
+
+  if (sortBy === "name") {
+    orderBy.name = sortOrder;
+  } else if (sortBy === "code") {
+    orderBy.code = sortOrder;
+  } else {
+    orderBy.createdAt = sortOrder;
+  }
+
+  const [departments, total] = await Promise.all([
+    prisma.department.findMany({
+      where,
+      orderBy,
+      skip: (page - 1) * limit,
+      take: limit,
+      include: {
+        teachers: true,
+        students: true,
+        courses: true,
+      },
+    }),
+    prisma.department.count({ where }),
+  ]);
+
+  return {
+    departments,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
     },
-  });
+  };
 };
 
 export const getDepartmentById = async (id) => {

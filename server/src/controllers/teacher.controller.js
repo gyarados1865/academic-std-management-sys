@@ -2,12 +2,12 @@ import * as teacherService from "../services/teacher.service.js";
 
 export const getAllTeachers = async (req, res, next) => {
   try {
-    const teachers = await teacherService.getAllTeachers();
+    const result = await teacherService.getAllTeachers(req.query);
 
     res.status(200).json({
       success: true,
-      count: teachers.length,
-      data: teachers,
+      pagination: result.pagination,
+      data: result.teachers,
     });
   } catch (error) {
     next(error);
