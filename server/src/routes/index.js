@@ -1,17 +1,11 @@
-import { Router } from "express";
+import express from "express";
+
 import authRoutes from "./auth.routes.js";
+import studentRoutes from "./student.routes.js";
 
-const router = Router();
+const router = express.Router();
 
-// Health Check
-router.get("/", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "Academic Student Management System API is running",
-  });
-});
-
-// Feature Routes
 router.use("/auth", authRoutes);
+router.use("/students", studentRoutes);
 
 export default router;
