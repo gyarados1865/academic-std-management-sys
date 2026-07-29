@@ -103,7 +103,6 @@ describe("Student API integration", () => {
         })
       );
 
-      createdEmails.add(payload.email);
       createdStudentIds.add(response.body.data.id);
     });
 
@@ -164,7 +163,6 @@ describe("Student API integration", () => {
         .send(payload);
 
       expect(createResponse.status).toBe(201);
-      createdEmails.add(payload.email);
       createdStudentIds.add(createResponse.body.data.id);
 
       const response = await apiRequest
@@ -201,7 +199,6 @@ describe("Student API integration", () => {
 
       expect(createResponse.status).toBe(201);
       const studentId = createResponse.body.data.id;
-      createdEmails.add(payload.email);
       createdStudentIds.add(studentId);
 
       const response = await apiRequest
@@ -253,7 +250,6 @@ describe("Student API integration", () => {
 
       expect(createResponse.status).toBe(201);
       const studentId = createResponse.body.data.id;
-      createdEmails.add(payload.email);
       createdStudentIds.add(studentId);
 
       const updatePayload = {
@@ -287,8 +283,6 @@ describe("Student API integration", () => {
           }),
         })
       );
-
-      createdEmails.add(updatePayload.email);
     });
 
     it("returns 404 when updating a student that does not exist", async () => {
@@ -328,7 +322,6 @@ describe("Student API integration", () => {
 
       expect(createResponse.status).toBe(201);
       const studentId = createResponse.body.data.id;
-      createdEmails.add(payload.email);
       createdStudentIds.add(studentId);
 
       const response = await apiRequest
@@ -363,19 +356,12 @@ describe("Student API integration", () => {
 });
 
 afterAll(async () => {
-  try {
-    const emails = [...createdEmails];
-    const studentIds = [...createdStudentIds];
-    const departmentIds = [...createdDepartmentIds];
+  const emails = [...createdEmails];
+  const studentIds = [...createdStudentIds];
+  const departmentIds = [...createdDepartmentIds];
 
-    console.log('[student cleanup] emails', emails.length, emails);
-    console.log('[student cleanup] studentIds', studentIds.length, studentIds);
-    console.log('[student cleanup] departmentIds', departmentIds.length, departmentIds);
-
-    await cleanupStudentsByIds(studentIds);
-    await cleanupDepartmentsByIds(departmentIds);
-    await cleanupUsersByEmails(emails);
-  } finally {
-    await disconnectPrisma();
-  }
+  await cleanupStudentsByIds(studentIds);
+  await cleanupDepartmentsByIds(departmentIds);
+  await cleanupUsersByEmails(emails);
+  await disconnectPrisma();
 });
