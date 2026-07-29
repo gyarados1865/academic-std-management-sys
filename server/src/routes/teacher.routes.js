@@ -11,10 +11,12 @@ import {
   authenticate,
   authorize,
 } from "../middleware/auth.middleware.js";
+import validate from "../validators/validation.middleware.js";
+import { teacherSchema } from "../validators/teacher.validator.js";
 
 const router = express.Router();
 
-router.post("/", authenticate, authorize("ADMIN"), createTeacher);
+router.post("/", validate(teacherSchema), authenticate, authorize("ADMIN"), createTeacher);
 
 router.put(
   "/:id",
