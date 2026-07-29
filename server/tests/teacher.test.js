@@ -2,13 +2,13 @@ import { apiRequest } from "./helpers/request.helper.js";
 import { registerUser, loginUser } from "./helpers/auth.helper.js";
 import {
   createDepartmentPayload,
-  createStudentPayload,
+  createTeacherPayload,
   createUserPayload,
   INVALID_ID,
 } from "./helpers/testData.helper.js";
 import {
   cleanupDepartmentsByIds,
-  cleanupStudentsByIds,
+  cleanupTeachersByIds,
   cleanupUsersByEmails,
   disconnectPrisma,
 } from "./helpers/cleanup.helper.js";
@@ -16,13 +16,16 @@ import {
 jest.setTimeout(40000);
 
 const createdEmails = new Set();
-const createdStudentIds = new Set();
+const createdTeacherIds = new Set();
 const createdDepartmentIds = new Set();
 
 const registerAndLogin = async (payload) => {
   const registerResponse = await registerUser(payload);
+
   if (registerResponse.status !== 201) {
-    throw new Error(`Failed to register test user: ${registerResponse.body?.message || registerResponse.text}`);
+    throw new Error(
+      `Failed to register test user: ${registerResponse.body?.message || registerResponse.text}`
+    );
   }
 
   createdEmails.add(payload.email);
@@ -30,33 +33,35 @@ const registerAndLogin = async (payload) => {
   const loginResponse = await loginUser(payload.email, payload.password);
 
   if (loginResponse.status !== 200 || !loginResponse.body?.data?.token) {
-    throw new Error(`Failed to log in test user: ${loginResponse.body?.message || loginResponse.text}`);
+    throw new Error(
+      `Failed to log in test user: ${loginResponse.body?.message || loginResponse.text}`
+    );
   }
 
   return loginResponse.body.data.token;
 };
 
-const buildStudentPayload = (overrides = {}) => {
-  const payload = createStudentPayload(overrides);
+const buildTeacherPayload = (overrides = {}) => {
+  const payload = createTeacherPayload(overrides);
   delete payload.role;
   return payload;
 };
 
-describe("Student API integration", () => {
+describe("Teacher API integration", () => {
   let adminToken = "";
   let studentToken = "";
   let departmentId = "";
 
   beforeAll(async () => {
     const adminPayload = createUserPayload({
-      name: "Admin Tester",
-      email: `admin-student-${Date.now()}@example.com`,
+      name: "Admin Teacher Tester",
+      email: `admin-teacher-${Date.now()}@example.com`,
       role: "ADMIN",
     });
 
     const studentPayload = createUserPayload({
-      name: "Student Tester",
-      email: `student-role-${Date.now()}@example.com`,
+      name: "Student Teacher Tester",
+      email: `student-teacher-${Date.now()}@example.com`,
       role: "STUDENT",
     });
 
@@ -78,14 +83,14 @@ describe("Student API integration", () => {
   });
 
   describe("Create", () => {
-    it("creates a student successfully with valid admin credentials", async () => {
-      const payload = buildStudentPayload({
+    it("creates a teacher successfully with valid admin credentials", async () => {
+      const payload = buildTeacherPayload({
         departmentId,
-        registrationNo: `STU-${Date.now()}`,
+        employeeId: `EMP-${Date.now()}`,
       });
 
       const response = await apiRequest
-        .post("/api/students")
+        .post("/api/teachers")
         .set("Authorization", `Bearer ${adminToken}`)
         .send(payload);
 
@@ -104,18 +109,18 @@ describe("Student API integration", () => {
       );
 
       createdEmails.add(payload.email);
-      createdStudentIds.add(response.body.data.id);
+      createdTeacherIds.add(response.body.data.id);
     });
 
-    it("rejects student creation when required fields are missing", async () => {
-      const payload = buildStudentPayload({
+    it("rejects teacher creation when required fields are missing", async () => {
+      const payload = buildTeacherPayload({
         departmentId,
-        registrationNo: `STU-${Date.now()}`,
+        employeeId: `EMP-${Date.now()}`,
       });
-      delete payload.gender;
+      delete payload.employeeId;
 
       const response = await apiRequest
-        .post("/api/students")
+        .post("/api/teachers")
         .set("Authorization", `Bearer ${adminToken}`)
         .send(payload);
 
@@ -129,14 +134,14 @@ describe("Student API integration", () => {
       );
     });
 
-    it("rejects student creation for a non-admin user", async () => {
-      const payload = buildStudentPayload({
+    it("rejects teacher creation for a non-admin user", async () => {
+      const payload = buildTeacherPayload({
         departmentId,
-        registrationNo: `STU-${Date.now()}`,
+        employeeId: `EMP-${Date.now()}`,
       });
 
       const response = await apiRequest
-        .post("/api/students")
+        .post("/api/teachers")
         .set("Authorization", `Bearer ${studentToken}`)
         .send(payload);
 
@@ -152,24 +157,30 @@ describe("Student API integration", () => {
   });
 
   describe("Read", () => {
-    it("returns all students with pagination and optional search", async () => {
-      const payload = buildStudentPayload({
+    it("returns all teachers with pagination and optional search", async () => {
+      const payload = buildTeacherPayload({
         departmentId,
-        registrationNo: `STU-${Date.now()}`,
+        employeeId: `EMP-${Date.now()}`,
       });
 
       const createResponse = await apiRequest
-        .post("/api/students")
+        .post("/api/teachers")
         .set("Authorization", `Bearer ${adminToken}`)
         .send(payload);
 
       expect(createResponse.status).toBe(201);
       createdEmails.add(payload.email);
-      createdStudentIds.add(createResponse.body.data.id);
+      createdTeacherIds.add(createResponse.body.data.id);
 
       const response = await apiRequest
-        .get("/api/students")
-        .query({ page: 1, limit: 5, search: payload.registrationNo, sortBy: "createdAt", sortOrder: "desc" })
+        .get("/api/teachers")
+        .query({
+          page: 1,
+          limit: 5,
+          search: payload.employeeId,
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        })
         .set("Authorization", `Bearer ${adminToken}`);
 
       expect(response.status).toBe(200);
@@ -188,24 +199,24 @@ describe("Student API integration", () => {
       );
     });
 
-    it("returns a single student by id", async () => {
-      const payload = buildStudentPayload({
+    it("returns a single teacher by id", async () => {
+      const payload = buildTeacherPayload({
         departmentId,
-        registrationNo: `STU-${Date.now()}`,
+        employeeId: `EMP-${Date.now()}`,
       });
 
       const createResponse = await apiRequest
-        .post("/api/students")
+        .post("/api/teachers")
         .set("Authorization", `Bearer ${adminToken}`)
         .send(payload);
 
       expect(createResponse.status).toBe(201);
-      const studentId = createResponse.body.data.id;
+      const teacherId = createResponse.body.data.id;
       createdEmails.add(payload.email);
-      createdStudentIds.add(studentId);
+      createdTeacherIds.add(teacherId);
 
       const response = await apiRequest
-        .get(`/api/students/${studentId}`)
+        .get(`/api/teachers/${teacherId}`)
         .set("Authorization", `Bearer ${adminToken}`);
 
       expect(response.status).toBe(200);
@@ -214,7 +225,7 @@ describe("Student API integration", () => {
         expect.objectContaining({
           success: true,
           data: expect.objectContaining({
-            id: studentId,
+            id: teacherId,
             user: expect.objectContaining({
               email: payload.email,
             }),
@@ -223,9 +234,9 @@ describe("Student API integration", () => {
       );
     });
 
-    it("returns 404 when a student id does not exist", async () => {
+    it("returns 404 when a teacher id does not exist", async () => {
       const response = await apiRequest
-        .get(`/api/students/${INVALID_ID}`)
+        .get(`/api/teachers/${INVALID_ID}`)
         .set("Authorization", `Bearer ${adminToken}`);
 
       expect(response.status).toBe(404);
@@ -240,37 +251,37 @@ describe("Student API integration", () => {
   });
 
   describe("Update", () => {
-    it("updates a student successfully", async () => {
-      const payload = buildStudentPayload({
+    it("updates a teacher successfully", async () => {
+      const payload = buildTeacherPayload({
         departmentId,
-        registrationNo: `STU-${Date.now()}`,
+        employeeId: `EMP-${Date.now()}`,
       });
 
       const createResponse = await apiRequest
-        .post("/api/students")
+        .post("/api/teachers")
         .set("Authorization", `Bearer ${adminToken}`)
         .send(payload);
 
       expect(createResponse.status).toBe(201);
-      const studentId = createResponse.body.data.id;
+      const teacherId = createResponse.body.data.id;
       createdEmails.add(payload.email);
-      createdStudentIds.add(studentId);
+      createdTeacherIds.add(teacherId);
 
       const updatePayload = {
-        name: "Updated Student",
-        email: `updated-${Date.now()}@example.com`,
-        registrationNo: `STU-UPD-${Date.now()}`,
-        gender: "FEMALE",
+        name: "Updated Teacher",
+        email: `updated-teacher-${Date.now()}@example.com`,
+        employeeId: `EMP-UPD-${Date.now()}`,
         departmentId,
         phone: "+923001111111",
-        address: "Updated Address",
-        dateOfBirth: "1995-01-01",
-        profileImage: "https://example.com/profile.png",
+        designation: "Senior Lecturer",
+        qualification: "MSc CS",
+        joiningDate: "2020-01-01",
+        profileImage: "https://example.com/avatar.png",
         isActive: false,
       };
 
       const response = await apiRequest
-        .put(`/api/students/${studentId}`)
+        .put(`/api/teachers/${teacherId}`)
         .set("Authorization", `Bearer ${adminToken}`)
         .send(updatePayload);
 
@@ -280,7 +291,7 @@ describe("Student API integration", () => {
         expect.objectContaining({
           success: true,
           data: expect.objectContaining({
-            id: studentId,
+            id: teacherId,
             user: expect.objectContaining({
               email: updatePayload.email,
             }),
@@ -291,15 +302,14 @@ describe("Student API integration", () => {
       createdEmails.add(updatePayload.email);
     });
 
-    it("returns 404 when updating a student that does not exist", async () => {
+    it("returns 404 when updating a teacher that does not exist", async () => {
       const response = await apiRequest
-        .put(`/api/students/${INVALID_ID}`)
+        .put(`/api/teachers/${INVALID_ID}`)
         .set("Authorization", `Bearer ${adminToken}`)
         .send({
-          name: "No One",
-          email: `ghost-${Date.now()}@example.com`,
-          registrationNo: `STU-GHOST-${Date.now()}`,
-          gender: "OTHER",
+          name: "Ghost Teacher",
+          email: `ghost-teacher-${Date.now()}@example.com`,
+          employeeId: `EMP-GHOST-${Date.now()}`,
           departmentId,
         });
 
@@ -315,24 +325,24 @@ describe("Student API integration", () => {
   });
 
   describe("Delete", () => {
-    it("deletes a student successfully", async () => {
-      const payload = buildStudentPayload({
+    it("deletes a teacher successfully", async () => {
+      const payload = buildTeacherPayload({
         departmentId,
-        registrationNo: `STU-${Date.now()}`,
+        employeeId: `EMP-${Date.now()}`,
       });
 
       const createResponse = await apiRequest
-        .post("/api/students")
+        .post("/api/teachers")
         .set("Authorization", `Bearer ${adminToken}`)
         .send(payload);
 
       expect(createResponse.status).toBe(201);
-      const studentId = createResponse.body.data.id;
+      const teacherId = createResponse.body.data.id;
       createdEmails.add(payload.email);
-      createdStudentIds.add(studentId);
+      createdTeacherIds.add(teacherId);
 
       const response = await apiRequest
-        .delete(`/api/students/${studentId}`)
+        .delete(`/api/teachers/${teacherId}`)
         .set("Authorization", `Bearer ${adminToken}`);
 
       expect(response.status).toBe(200);
@@ -345,9 +355,9 @@ describe("Student API integration", () => {
       );
     });
 
-    it("returns 404 when deleting a student that does not exist", async () => {
+    it("returns 404 when deleting a teacher that does not exist", async () => {
       const response = await apiRequest
-        .delete(`/api/students/${INVALID_ID}`)
+        .delete(`/api/teachers/${INVALID_ID}`)
         .set("Authorization", `Bearer ${adminToken}`);
 
       expect(response.status).toBe(404);
@@ -365,14 +375,14 @@ describe("Student API integration", () => {
 afterAll(async () => {
   try {
     const emails = [...createdEmails];
-    const studentIds = [...createdStudentIds];
+    const teacherIds = [...createdTeacherIds];
     const departmentIds = [...createdDepartmentIds];
 
-    console.log('[student cleanup] emails', emails.length, emails);
-    console.log('[student cleanup] studentIds', studentIds.length, studentIds);
-    console.log('[student cleanup] departmentIds', departmentIds.length, departmentIds);
+    console.log('[teacher cleanup] emails', emails.length, emails);
+    console.log('[teacher cleanup] teacherIds', teacherIds.length, teacherIds);
+    console.log('[teacher cleanup] departmentIds', departmentIds.length, departmentIds);
 
-    await cleanupStudentsByIds(studentIds);
+    await cleanupTeachersByIds(teacherIds);
     await cleanupDepartmentsByIds(departmentIds);
     await cleanupUsersByEmails(emails);
   } finally {

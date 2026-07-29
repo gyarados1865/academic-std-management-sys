@@ -218,17 +218,19 @@ describe("Authentication API integration", () => {
 });
 
 afterAll(async () => {
-  const emailsToDelete = [...createdEmails];
+  try {
+    const emailsToDelete = [...createdEmails];
 
-  if (emailsToDelete.length > 0) {
-    await prisma.user.deleteMany({
-      where: {
-        email: {
-          in: emailsToDelete,
+    if (emailsToDelete.length > 0) {
+      await prisma.user.deleteMany({
+        where: {
+          email: {
+            in: emailsToDelete,
+          },
         },
-      },
-    });
+      });
+    }
+  } finally {
+    await prisma.$disconnect();
   }
-
-  await prisma.$disconnect();
 });
