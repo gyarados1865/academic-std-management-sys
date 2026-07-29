@@ -6,8 +6,7 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
-    "test": "jest"
+    "start": "node src/server.js"
   },
   "keywords": [
     "express",
@@ -31,11 +30,6 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
-    "@babel/core": "^8.0.1",
-    "@babel/preset-env": "^8.0.2",
-    "babel-jest": "^30.4.1",
-    "jest": "^30.4.2",
-    "nodemon": "^3.1.14",
-    "supertest": "^7.2.2"
+    "nodemon": "^3.1.14"
   }
 }
