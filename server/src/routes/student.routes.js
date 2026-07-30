@@ -21,7 +21,9 @@ const router = express.Router();
  * /api/students:
  *   post:
  *     summary: Create a student
- *     description: Creates a new student record in the system.
+ *     description: >
+ *       Creates a new student record in the system. Requires the **ADMIN** role.
+ *       The payload creates both a User account and the student's academic profile.
  *     tags:
  *       - Students
  *     operationId: createStudent
@@ -35,41 +37,63 @@ const router = express.Router();
  *             $ref: '#/components/schemas/CreateStudentRequest'
  *     responses:
  *       201:
- *         description: Student created successfully
+ *         description: Student created successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: "Student created successfully."
+ *               data:
+ *                 id: "cljk0z5t70010qzrmte6u8v9w"
+ *                 registrationNumber: "FA22-BCS-001"
+ *                 gender: "MALE"
+ *                 phone: "+923001234567"
+ *                 address: "House 12, Street 4, F-10, Islamabad"
+ *                 dateOfBirth: "2003-05-14T00:00:00.000Z"
+ *                 profileImage: "https://cdn.university.edu/profiles/muhammad-ali.jpg"
+ *                 isActive: true
+ *                 userId: "cljk0a1b20000qzrm5f8g2h3i"
+ *                 departmentId: "cljk0g7h80003qzrmbl3m8n9o"
+ *                 createdAt: "2026-01-15T09:30:00.000Z"
+ *                 updatedAt: "2026-01-15T09:30:00.000Z"
  *       400:
- *         description: Validation error
+ *         description: Validation error — one or more fields failed validation.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ValidationErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "\"email\" must be a valid email."
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have the ADMIN role.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       409:
- *         description: Student already exists
+ *         description: Student already exists.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ConflictResponse'
+ *             example:
+ *               success: false
+ *               message: "Student already exists."
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.post("/", validate(studentSchema), authenticate, authorize("ADMIN"), createStudent);
 
@@ -78,7 +102,9 @@ router.post("/", validate(studentSchema), authenticate, authorize("ADMIN"), crea
  * /api/students/{id}:
  *   put:
  *     summary: Update a student
- *     description: Updates an existing student by ID.
+ *     description: >
+ *       Updates an existing student by ID. Requires the **ADMIN** role.
+ *       The update endpoint does not run request schema validation middleware on all fields.
  *     tags:
  *       - Students
  *     operationId: updateStudent
@@ -90,8 +116,8 @@ router.post("/", validate(studentSchema), authenticate, authorize("ADMIN"), crea
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
- *         description: Unique student identifier
+ *           example: "cljk0z5t70010qzrmte6u8v9w"
+ *         description: Unique student identifier.
  *     requestBody:
  *       required: true
  *       content:
@@ -100,41 +126,60 @@ router.post("/", validate(studentSchema), authenticate, authorize("ADMIN"), crea
  *             $ref: '#/components/schemas/CreateStudentRequest'
  *     responses:
  *       200:
- *         description: Student updated successfully
+ *         description: Student updated successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: "Student updated successfully."
+ *               data:
+ *                 id: "cljk0z5t70010qzrmte6u8v9w"
+ *                 registrationNumber: "FA22-BCS-001"
+ *                 gender: "MALE"
+ *                 phone: "+923001234567"
+ *                 address: "House 12, Street 4, F-10, Islamabad"
+ *                 dateOfBirth: "2003-05-14T00:00:00.000Z"
+ *                 profileImage: "https://cdn.university.edu/profiles/muhammad-ali.jpg"
+ *                 isActive: true
+ *                 userId: "cljk0a1b20000qzrm5f8g2h3i"
+ *                 departmentId: "cljk0g7h80003qzrmbl3m8n9o"
+ *                 createdAt: "2026-01-15T09:30:00.000Z"
+ *                 updatedAt: "2026-06-20T11:00:00.000Z"
  *       400:
- *         description: Validation error
+ *         description: Validation error — one or more fields failed validation.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ValidationErrorResponse'
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have the ADMIN role.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       404:
- *         description: Student not found
+ *         description: Student not found.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/NotFoundResponse'
+ *             example:
+ *               success: false
+ *               message: "Student not found."
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.put(
   "/:id",
@@ -148,7 +193,7 @@ router.put(
  * /api/students/{id}:
  *   delete:
  *     summary: Delete a student
- *     description: Deletes an existing student by ID.
+ *     description: Deletes an existing student by ID. Requires the **ADMIN** role.
  *     tags:
  *       - Students
  *     operationId: deleteStudent
@@ -160,39 +205,47 @@ router.put(
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
- *         description: Unique student identifier
+ *           example: "cljk0z5t70010qzrmte6u8v9w"
+ *         description: Unique student identifier.
  *     responses:
  *       200:
- *         description: Student deleted successfully
+ *         description: Student deleted successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: "Student deleted successfully."
+ *               data:
+ *                 id: "cljk0z5t70010qzrmte6u8v9w"
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have the ADMIN role.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       404:
- *         description: Student not found
+ *         description: Student not found.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/NotFoundResponse'
+ *             example:
+ *               success: false
+ *               message: "Student not found."
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.delete(
   "/:id",
@@ -238,29 +291,49 @@ router.delete(
  *           enum: [asc, desc]
  *     responses:
  *       200:
- *         description: Students retrieved successfully
+ *         description: Students retrieved successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/PaginatedResponse'
+ *             example:
+ *               success: true
+ *               pagination:
+ *                 page: 1
+ *                 limit: 10
+ *                 total: 1
+ *                 totalPages: 1
+ *               data:
+ *                 - id: "cljk0z5t70010qzrmte6u8v9w"
+ *                   registrationNumber: "FA22-BCS-001"
+ *                   gender: "MALE"
+ *                   phone: "+923001234567"
+ *                   address: "House 12, Street 4, F-10, Islamabad"
+ *                   dateOfBirth: "2003-05-14T00:00:00.000Z"
+ *                   profileImage: "https://cdn.university.edu/profiles/muhammad-ali.jpg"
+ *                   isActive: true
+ *                   userId: "cljk0a1b20000qzrm5f8g2h3i"
+ *                   departmentId: "cljk0g7h80003qzrmbl3m8n9o"
+ *                   createdAt: "2026-01-15T09:30:00.000Z"
+ *                   updatedAt: "2026-07-01T09:30:00.000Z"
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have permission to view students.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.get("/", authenticate, authorize("ADMIN", "TEACHER"), getAllStudents);
 
@@ -281,39 +354,58 @@ router.get("/", authenticate, authorize("ADMIN", "TEACHER"), getAllStudents);
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
- *         description: Unique student identifier
+ *           example: "cljk0z5t70010qzrmte6u8v9w"
+ *         description: Unique student identifier.
  *     responses:
  *       200:
- *         description: Student retrieved successfully
+ *         description: Student retrieved successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: "Student retrieved successfully."
+ *               data:
+ *                 id: "cljk0z5t70010qzrmte6u8v9w"
+ *                 registrationNumber: "FA22-BCS-001"
+ *                 gender: "MALE"
+ *                 phone: "+923001234567"
+ *                 address: "House 12, Street 4, F-10, Islamabad"
+ *                 dateOfBirth: "2003-05-14T00:00:00.000Z"
+ *                 profileImage: "https://cdn.university.edu/profiles/muhammad-ali.jpg"
+ *                 isActive: true
+ *                 userId: "cljk0a1b20000qzrm5f8g2h3i"
+ *                 departmentId: "cljk0g7h80003qzrmbl3m8n9o"
+ *                 createdAt: "2026-01-15T09:30:00.000Z"
+ *                 updatedAt: "2026-07-01T09:30:00.000Z"
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have permission to view this student.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       404:
- *         description: Student not found
+ *         description: Student not found.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/NotFoundResponse'
+ *             example:
+ *               success: false
+ *               message: "Student not found."
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.get(
   "/:id",

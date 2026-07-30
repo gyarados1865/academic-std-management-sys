@@ -96,8 +96,36 @@ const options = {
             },
             password: {
               type: "string",
-              example: "123456",
+              example: "Password123!",
               description: "User password",
+            },
+          },
+        },
+        RegisterRequest: {
+          type: "object",
+          required: ["name", "email", "password", "role"],
+          properties: {
+            name: {
+              type: "string",
+              example: "Muhammad Sibtain Khan",
+              description: "User full name",
+            },
+            email: {
+              type: "string",
+              format: "email",
+              example: "sibtain@example.com",
+              description: "User email address",
+            },
+            password: {
+              type: "string",
+              example: "Password123!",
+              description: "User password",
+            },
+            role: {
+              type: "string",
+              enum: ["ADMIN", "TEACHER", "STUDENT"],
+              example: "ADMIN",
+              description: "User role",
             },
           },
         },
@@ -107,18 +135,18 @@ const options = {
           properties: {
             name: {
               type: "string",
-              example: "Ali Khan",
+              example: "Muhammad Sibtain Khan",
               description: "Student full name",
             },
             email: {
               type: "string",
               format: "email",
-              example: "ali@example.com",
+              example: "sibtain@example.com",
               description: "Student email",
             },
             password: {
               type: "string",
-              example: "123456",
+              example: "Password123!",
               description: "Student password",
             },
             registrationNo: {
@@ -146,18 +174,18 @@ const options = {
           properties: {
             name: {
               type: "string",
-              example: "Dr. Ayesha Malik",
+              example: "Dr Ahmed Khan",
               description: "Teacher full name",
             },
             email: {
               type: "string",
               format: "email",
-              example: "ayesha@example.com",
+              example: "ahmed@example.com",
               description: "Teacher email",
             },
             password: {
               type: "string",
-              example: "123456",
+              example: "Password123!",
               description: "Teacher password",
             },
             employeeId: {
@@ -220,7 +248,7 @@ const options = {
             },
             description: {
               type: "string",
-              example: "Department for computer science studies",
+              example: "Department of Computer Science",
               description: "Department description",
             },
           },
@@ -231,12 +259,12 @@ const options = {
           properties: {
             name: {
               type: "string",
-              example: "Bachelor of Computer Science",
+              example: "BS Computer Science",
               description: "Course name",
             },
             code: {
               type: "string",
-              example: "BCS",
+              example: "BSCS",
               description: "Course code",
             },
             durationYears: {
@@ -263,12 +291,12 @@ const options = {
           properties: {
             name: {
               type: "string",
-              example: "First Semester",
+              example: "Spring 2026",
               description: "Semester name",
             },
             number: {
               type: "integer",
-              example: 1,
+              example: 4,
               description: "Semester number",
             },
             status: {

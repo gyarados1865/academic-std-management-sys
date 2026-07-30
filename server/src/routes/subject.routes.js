@@ -21,7 +21,9 @@ const router = express.Router();
  * /api/subjects:
  *   post:
  *     summary: Create a subject
- *     description: Creates a new subject record in the system.
+ *     description: >
+ *       Creates a new subject record in the system. Requires the **ADMIN** role.
+ *       Subject codes must be unique within the department.
  *     tags:
  *       - Subjects
  *     operationId: createSubject
@@ -35,41 +37,58 @@ const router = express.Router();
  *             $ref: '#/components/schemas/CreateSubjectRequest'
  *     responses:
  *       201:
- *         description: Subject created successfully
+ *         description: Subject created successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: "Subject created successfully."
+ *               data:
+ *                 id: "cljk0y1u80011qzrmtf7w9x0y"
+ *                 name: "Calculus I"
+ *                 code: "MATH101"
+ *                 creditHours: 3
+ *                 departmentId: "cljk0g7h80003qzrmbl3m8n9o"
+ *                 createdAt: "2026-01-15T09:30:00.000Z"
+ *                 updatedAt: "2026-01-15T09:30:00.000Z"
  *       400:
- *         description: Validation error
+ *         description: Validation error — one or more fields failed validation.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ValidationErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "\"code\" is required."
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have the ADMIN role.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       409:
- *         description: Subject already exists
+ *         description: Subject already exists.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ConflictResponse'
+ *             example:
+ *               success: false
+ *               message: "Subject already exists."
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.post("/", validate(subjectSchema), authenticate, authorize("ADMIN"), createSubject);
 
@@ -78,7 +97,9 @@ router.post("/", validate(subjectSchema), authenticate, authorize("ADMIN"), crea
  * /api/subjects/{id}:
  *   put:
  *     summary: Update a subject
- *     description: Updates an existing subject by ID.
+ *     description: >
+ *       Updates an existing subject by ID. Requires the **ADMIN** role.
+ *       The update endpoint does not run request schema validation middleware on all fields.
  *     tags:
  *       - Subjects
  *     operationId: updateSubject
@@ -90,8 +111,8 @@ router.post("/", validate(subjectSchema), authenticate, authorize("ADMIN"), crea
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
- *         description: Unique subject identifier
+ *           example: "cljk0y1u80011qzrmtf7w9x0y"
+ *         description: Unique subject identifier.
  *     requestBody:
  *       required: true
  *       content:
@@ -100,41 +121,55 @@ router.post("/", validate(subjectSchema), authenticate, authorize("ADMIN"), crea
  *             $ref: '#/components/schemas/CreateSubjectRequest'
  *     responses:
  *       200:
- *         description: Subject updated successfully
+ *         description: Subject updated successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: "Subject updated successfully."
+ *               data:
+ *                 id: "cljk0y1u80011qzrmtf7w9x0y"
+ *                 name: "Calculus I"
+ *                 code: "MATH101"
+ *                 creditHours: 3
+ *                 departmentId: "cljk0g7h80003qzrmbl3m8n9o"
+ *                 createdAt: "2026-01-15T09:30:00.000Z"
+ *                 updatedAt: "2026-02-10T10:15:00.000Z"
  *       400:
- *         description: Validation error
+ *         description: Validation error — one or more fields failed validation.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ValidationErrorResponse'
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have the ADMIN role.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       404:
- *         description: Subject not found
+ *         description: Subject not found.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/NotFoundResponse'
+ *             example:
+ *               success: false
+ *               message: "Subject not found."
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.put(
   "/:id",
@@ -148,7 +183,7 @@ router.put(
  * /api/subjects/{id}:
  *   delete:
  *     summary: Delete a subject
- *     description: Deletes an existing subject by ID.
+ *     description: Deletes an existing subject by ID. Requires the **ADMIN** role.
  *     tags:
  *       - Subjects
  *     operationId: deleteSubject
@@ -160,39 +195,47 @@ router.put(
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
- *         description: Unique subject identifier
+ *           example: "cljk0y1u80011qzrmtf7w9x0y"
+ *         description: Unique subject identifier.
  *     responses:
  *       200:
- *         description: Subject deleted successfully
+ *         description: Subject deleted successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: "Subject deleted successfully."
+ *               data:
+ *                 id: "cljk0y1u80011qzrmtf7w9x0y"
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have the ADMIN role.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       404:
- *         description: Subject not found
+ *         description: Subject not found.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/NotFoundResponse'
+ *             example:
+ *               success: false
+ *               message: "Subject not found."
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.delete(
   "/:id",
@@ -238,29 +281,44 @@ router.delete(
  *           enum: [asc, desc]
  *     responses:
  *       200:
- *         description: Subjects retrieved successfully
+ *         description: Subjects retrieved successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/PaginatedResponse'
+ *             example:
+ *               success: true
+ *               pagination:
+ *                 page: 1
+ *                 limit: 10
+ *                 total: 1
+ *                 totalPages: 1
+ *               data:
+ *                 - id: "cljk0y1u80011qzrmtf7w9x0y"
+ *                   name: "Calculus I"
+ *                   code: "MATH101"
+ *                   creditHours: 3
+ *                   departmentId: "cljk0g7h80003qzrmbl3m8n9o"
+ *                   createdAt: "2026-01-15T09:30:00.000Z"
+ *                   updatedAt: "2026-01-15T09:30:00.000Z"
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have permission to view subjects.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.get("/", authenticate, authorize("ADMIN", "TEACHER"), getAllSubjects);
 
@@ -281,39 +339,53 @@ router.get("/", authenticate, authorize("ADMIN", "TEACHER"), getAllSubjects);
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
- *         description: Unique subject identifier
+ *           example: "cljk0y1u80011qzrmtf7w9x0y"
+ *         description: Unique subject identifier.
  *     responses:
  *       200:
- *         description: Subject retrieved successfully
+ *         description: Subject retrieved successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: "Subject retrieved successfully."
+ *               data:
+ *                 id: "cljk0y1u80011qzrmtf7w9x0y"
+ *                 name: "Calculus I"
+ *                 code: "MATH101"
+ *                 creditHours: 3
+ *                 departmentId: "cljk0g7h80003qzrmbl3m8n9o"
+ *                 createdAt: "2026-01-15T09:30:00.000Z"
+ *                 updatedAt: "2026-01-15T09:30:00.000Z"
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have permission to view this subject.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       404:
- *         description: Subject not found
+ *         description: Subject not found.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/NotFoundResponse'
+ *             example:
+ *               success: false
+ *               message: "Subject not found."
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.get(
   "/:id",

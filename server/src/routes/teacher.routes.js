@@ -21,7 +21,9 @@ const router = express.Router();
  * /api/teachers:
  *   post:
  *     summary: Create a teacher
- *     description: Creates a new teacher record in the system.
+ *     description: >
+ *       Creates a new teacher record in the system. Requires the **ADMIN** role.
+ *       The payload creates both a User account and the teacher employment profile.
  *     tags:
  *       - Teachers
  *     operationId: createTeacher
@@ -35,41 +37,60 @@ const router = express.Router();
  *             $ref: '#/components/schemas/CreateTeacherRequest'
  *     responses:
  *       201:
- *         description: Teacher created successfully
+ *         description: Teacher created successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: "Teacher created successfully."
+ *               data:
+ *                 id: "cljk0a1c20002qzrm6j0k3l4m"
+ *                 employeeId: "EMP-2024-001"
+ *                 phone: "+923001234567"
+ *                 address: "House 12, Street 4, F-10, Islamabad"
+ *                 departmentId: "cljk0g7h80003qzrmbl3m8n9o"
+ *                 userId: "cljk0a1b20000qzrm5f8g2h3i"
+ *                 isActive: true
+ *                 createdAt: "2026-01-15T09:30:00.000Z"
+ *                 updatedAt: "2026-01-15T09:30:00.000Z"
  *       400:
- *         description: Validation error
+ *         description: Validation error — one or more fields failed validation.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ValidationErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "\"employeeId\" is required."
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have the ADMIN role.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       409:
- *         description: Teacher already exists
+ *         description: Teacher already exists.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ConflictResponse'
+ *             example:
+ *               success: false
+ *               message: "Teacher already exists."
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.post("/", validate(teacherSchema), authenticate, authorize("ADMIN"), createTeacher);
 
@@ -78,7 +99,9 @@ router.post("/", validate(teacherSchema), authenticate, authorize("ADMIN"), crea
  * /api/teachers/{id}:
  *   put:
  *     summary: Update a teacher
- *     description: Updates an existing teacher by ID.
+ *     description: >
+ *       Updates an existing teacher by ID. Requires the **ADMIN** role.
+ *       The update endpoint does not run request schema validation middleware on all fields.
  *     tags:
  *       - Teachers
  *     operationId: updateTeacher
@@ -90,8 +113,8 @@ router.post("/", validate(teacherSchema), authenticate, authorize("ADMIN"), crea
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
- *         description: Unique teacher identifier
+ *           example: "cljk0a1c20002qzrm6j0k3l4m"
+ *         description: Unique teacher identifier.
  *     requestBody:
  *       required: true
  *       content:
@@ -100,41 +123,57 @@ router.post("/", validate(teacherSchema), authenticate, authorize("ADMIN"), crea
  *             $ref: '#/components/schemas/CreateTeacherRequest'
  *     responses:
  *       200:
- *         description: Teacher updated successfully
+ *         description: Teacher updated successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: "Teacher updated successfully."
+ *               data:
+ *                 id: "cljk0a1c20002qzrm6j0k3l4m"
+ *                 employeeId: "EMP-2024-001"
+ *                 phone: "+923001234567"
+ *                 address: "House 12, Street 4, F-10, Islamabad"
+ *                 departmentId: "cljk0g7h80003qzrmbl3m8n9o"
+ *                 userId: "cljk0a1b20000qzrm5f8g2h3i"
+ *                 isActive: true
+ *                 createdAt: "2026-01-15T09:30:00.000Z"
+ *                 updatedAt: "2026-02-10T10:15:00.000Z"
  *       400:
- *         description: Validation error
+ *         description: Validation error — one or more fields failed validation.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ValidationErrorResponse'
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have the ADMIN role.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       404:
- *         description: Teacher not found
+ *         description: Teacher not found.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/NotFoundResponse'
+ *             example:
+ *               success: false
+ *               message: "Teacher not found."
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.put(
   "/:id",
@@ -148,7 +187,7 @@ router.put(
  * /api/teachers/{id}:
  *   delete:
  *     summary: Delete a teacher
- *     description: Deletes an existing teacher by ID.
+ *     description: Deletes an existing teacher by ID. Requires the **ADMIN** role.
  *     tags:
  *       - Teachers
  *     operationId: deleteTeacher
@@ -160,39 +199,47 @@ router.put(
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
- *         description: Unique teacher identifier
+ *           example: "cljk0a1c20002qzrm6j0k3l4m"
+ *         description: Unique teacher identifier.
  *     responses:
  *       200:
- *         description: Teacher deleted successfully
+ *         description: Teacher deleted successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: "Teacher deleted successfully."
+ *               data:
+ *                 id: "cljk0a1c20002qzrm6j0k3l4m"
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have the ADMIN role.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       404:
- *         description: Teacher not found
+ *         description: Teacher not found.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/NotFoundResponse'
+ *             example:
+ *               success: false
+ *               message: "Teacher not found."
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.delete(
   "/:id",
@@ -238,29 +285,46 @@ router.delete(
  *           enum: [asc, desc]
  *     responses:
  *       200:
- *         description: Teachers retrieved successfully
+ *         description: Teachers retrieved successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/PaginatedResponse'
+ *             example:
+ *               success: true
+ *               pagination:
+ *                 page: 1
+ *                 limit: 10
+ *                 total: 1
+ *                 totalPages: 1
+ *               data:
+ *                 - id: "cljk0a1c20002qzrm6j0k3l4m"
+ *                   employeeId: "EMP-2024-001"
+ *                   phone: "+923001234567"
+ *                   address: "House 12, Street 4, F-10, Islamabad"
+ *                   departmentId: "cljk0g7h80003qzrmbl3m8n9o"
+ *                   userId: "cljk0a1b20000qzrm5f8g2h3i"
+ *                   isActive: true
+ *                   createdAt: "2026-01-15T09:30:00.000Z"
+ *                   updatedAt: "2026-01-15T09:30:00.000Z"
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have permission to view teachers.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.get("/", authenticate, authorize("ADMIN", "TEACHER"), getAllTeachers);
 
@@ -281,39 +345,55 @@ router.get("/", authenticate, authorize("ADMIN", "TEACHER"), getAllTeachers);
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
- *         description: Unique teacher identifier
+ *           example: "cljk0a1c20002qzrm6j0k3l4m"
+ *         description: Unique teacher identifier.
  *     responses:
  *       200:
- *         description: Teacher retrieved successfully
+ *         description: Teacher retrieved successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: "Teacher retrieved successfully."
+ *               data:
+ *                 id: "cljk0a1c20002qzrm6j0k3l4m"
+ *                 employeeId: "EMP-2024-001"
+ *                 phone: "+923001234567"
+ *                 address: "House 12, Street 4, F-10, Islamabad"
+ *                 departmentId: "cljk0g7h80003qzrmbl3m8n9o"
+ *                 userId: "cljk0a1b20000qzrm5f8g2h3i"
+ *                 isActive: true
+ *                 createdAt: "2026-01-15T09:30:00.000Z"
+ *                 updatedAt: "2026-01-15T09:30:00.000Z"
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have permission to view this teacher.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       404:
- *         description: Teacher not found
+ *         description: Teacher not found.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/NotFoundResponse'
+ *             example:
+ *               success: false
+ *               message: "Teacher not found."
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.get(
   "/:id",
