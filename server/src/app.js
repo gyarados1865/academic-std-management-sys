@@ -18,22 +18,18 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // =========================
-// Root Route
-// =========================
-
-app.get("/", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "Academic Student Management System API is running.",
-    documentation: "/api-docs",
-  });
-});
-
-// =========================
 // Swagger Documentation
 // =========================
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// =========================
+// Root Route
+// =========================
+
+app.get("/", (req, res) => {
+  res.redirect("/api-docs");
+});
 
 // =========================
 // API Routes
