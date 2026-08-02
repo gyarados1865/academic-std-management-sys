@@ -160,7 +160,7 @@ server/
 
 ```bash
 # Clone the repository
-git clone https://github.com/<your-username>/academic-std-management-sys.git
+git clone https://github.com/gyarados1865/academic-std-management-sys.git
 cd academic-std-management-sys/server
 
 # Install dependencies
