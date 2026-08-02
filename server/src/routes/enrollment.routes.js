@@ -90,7 +90,7 @@ router.post("/", validate(enrollmentSchema), authenticate, authorize("ADMIN"), c
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
+ *           example: "cljk0b2f60002qzrm9k1n4p8s"
  *         description: Unique enrollment identifier
  *     requestBody:
  *       required: true
@@ -160,7 +160,7 @@ router.put(
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
+ *           example: "cljk0b2f60002qzrm9k1n4p8s"
  *         description: Unique enrollment identifier
  *     responses:
  *       200:
@@ -281,7 +281,7 @@ router.get("/", authenticate, authorize("ADMIN", "TEACHER"), getAllEnrollments);
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
+ *           example: "cljk0b2f60002qzrm9k1n4p8s"
  *         description: Unique enrollment identifier
  *     responses:
  *       200:
