@@ -6,7 +6,12 @@ const options = {
     info: {
       title: "Academic Student Management System API",
       version: "1.0.0",
-      description: "Interactive OpenAPI documentation for managing students, teachers, departments, courses, enrollments, attendance, and academic results.",
+      description:
+        "Production OpenAPI documentation for the Academic Student Management System. " +
+        "This API manages the full academic lifecycle: departments, courses, semesters, subjects, " +
+        "teachers, students, enrollments, attendance records, and assessment results. " +
+        "All endpoints (except authentication) require a valid JWT Bearer token, and access is " +
+        "restricted by role (ADMIN, TEACHER, STUDENT) as documented per endpoint.",
       contact: {
         name: "Academic Student Management System",
         email: "support@example.com",
@@ -19,6 +24,7 @@ const options = {
     servers: [
       {
         url: "http://localhost:5000",
+        description: "Local development server",
       },
     ],
     tags: [
@@ -26,13 +32,13 @@ const options = {
       { name: "Students", description: "Endpoints for managing student records and profiles." },
       { name: "Teachers", description: "Endpoints for managing teacher records and profiles." },
       { name: "Departments", description: "Endpoints for managing academic departments." },
-      { name: "Courses", description: "Endpoints for managing academic courses." },
+      { name: "Courses", description: "Endpoints for managing academic degree programs (courses)." },
       { name: "Semesters", description: "Endpoints for managing course semesters." },
-      { name: "Subjects", description: "Endpoints for managing subjects within semesters." },
-      { name: "Enrollments", description: "Endpoints for managing subject enrollments." },
+      { name: "Subjects", description: "Endpoints for managing subjects taught within a semester." },
+      { name: "Enrollments", description: "Endpoints for managing student subject enrollments." },
       { name: "Attendance", description: "Endpoints for recording and reviewing student attendance." },
-      { name: "Results", description: "Endpoints for managing student assessment results." },
-      { name: "Dashboard", description: "Endpoints for retrieving dashboard statistics." },
+      { name: "Results", description: "Endpoints for managing student assessment results and grades." },
+      { name: "Dashboard", description: "Endpoints for retrieving aggregate dashboard statistics." },
     ],
     components: {
       securitySchemes: {
@@ -40,530 +46,257 @@ const options = {
           type: "http",
           scheme: "bearer",
           bearerFormat: "JWT",
+          description:
+            "JWT access token issued at login. Pass as: `Authorization: Bearer <token>`.",
         },
       },
+
+      // ==========================================================
+      // REUSABLE ENUM SCHEMAS
+      // Mirrors enums defined in schema.prisma exactly. Referenced
+      // via $ref/allOf from request and response schemas below so
+      // enum values only need to be maintained in one place.
+      // ==========================================================
+      // (also declared under "schemas" further below to keep a
+      // single components.schemas block, see Role/Gender/etc.)
+
+      parameters: {
+        PageParam: {
+          name: "page",
+          in: "query",
+          required: false,
+          description: "Page number to retrieve (1-indexed). Defaults to 1.",
+          schema: { type: "integer", minimum: 1, default: 1, example: 1 },
+        },
+        LimitParam: {
+          name: "limit",
+          in: "query",
+          required: false,
+          description: "Number of records to return per page. Defaults to 10, maximum 100.",
+          schema: { type: "integer", minimum: 1, maximum: 100, default: 10, example: 10 },
+        },
+        SortByParam: {
+          name: "sortBy",
+          in: "query",
+          required: false,
+          description: "Field name to sort results by (e.g. `createdAt`, `name`).",
+          schema: { type: "string", example: "createdAt" },
+        },
+        SortOrderParam: {
+          name: "sortOrder",
+          in: "query",
+          required: false,
+          description: "Sort direction applied to `sortBy`.",
+          schema: { type: "string", enum: ["asc", "desc"], default: "desc", example: "desc" },
+        },
+        SearchParam: {
+          name: "search",
+          in: "query",
+          required: false,
+          description: "Free-text search term matched against relevant fields (e.g. name, code, registration number).",
+          schema: { type: "string", example: "Muhammad Ali" },
+        },
+      },
+
       schemas: {
+        // ==========================================================
+        // ENUM SCHEMAS (single source of truth, mirrors schema.prisma)
+        // ==========================================================
+        Role: {
+          type: "string",
+          description: "System-wide user role controlling access permissions.",
+          enum: ["ADMIN", "TEACHER", "STUDENT"],
+          example: "STUDENT",
+        },
+        Gender: {
+          type: "string",
+          description: "Student gender.",
+          enum: ["MALE", "FEMALE", "OTHER"],
+          example: "MALE",
+        },
+        SemesterStatus: {
+          type: "string",
+          description: "Current lifecycle status of a semester.",
+          enum: ["UPCOMING", "ACTIVE", "COMPLETED"],
+          example: "ACTIVE",
+        },
+        AttendanceStatus: {
+          type: "string",
+          description: "Attendance status recorded for a student in a given subject session.",
+          enum: ["PRESENT", "ABSENT", "LATE"],
+          example: "PRESENT",
+        },
+        Grade: {
+          type: "string",
+          description: "Final letter grade awarded for a subject result.",
+          enum: ["A_PLUS", "A", "B_PLUS", "B", "C_PLUS", "C", "D", "F"],
+          example: "A",
+        },
+        EnrollmentStatus: {
+          type: "string",
+          description: "Current status of a student's enrollment in a subject.",
+          enum: ["ENROLLED", "DROPPED", "COMPLETED"],
+          example: "ENROLLED",
+        },
+
+        // ==========================================================
+        // AUTHENTICATION SCHEMAS
+        // ==========================================================
         User: {
           type: "object",
           required: ["id", "name", "email", "role"],
           properties: {
             id: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Unique user ID",
+              example: "cljk0a1b20000qzrm5f8g2h3i",
+              description: "Unique CUID identifier for the user account.",
             },
             name: {
               type: "string",
-              example: "Ali Khan",
-              description: "User full name",
+              example: "Muhammad Ali",
+              description: "User full name.",
             },
             email: {
               type: "string",
               format: "email",
-              example: "ali@example.com",
-              description: "User email address",
+              example: "muhammad.ali@university.edu",
+              description: "User email address (unique).",
             },
             role: {
-              type: "string",
-              enum: ["ADMIN", "TEACHER", "STUDENT"],
-              example: "STUDENT",
-              description: "User role",
+              allOf: [{ $ref: "#/components/schemas/Role" }],
+              description: "Role assigned to the user, determining permissions.",
             },
             createdAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "User creation timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the user account was created.",
             },
             updatedAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "User update timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the user account was last updated.",
             },
           },
         },
         LoginRequest: {
           type: "object",
+          description: "Credentials required to authenticate and receive a JWT access token.",
           required: ["email", "password"],
           properties: {
             email: {
               type: "string",
               format: "email",
-              example: "admin@example.com",
-              description: "User email address",
+              example: "admin@university.edu",
+              description: "Registered email address of the user.",
             },
             password: {
               type: "string",
-              example: "Password123!",
-              description: "User password",
+              format: "password",
+              minLength: 8,
+              example: "SecurePass123!",
+              description: "Account password.",
             },
           },
         },
         RegisterRequest: {
           type: "object",
+          description: "Payload required to create a new user account.",
           required: ["name", "email", "password", "role"],
           properties: {
             name: {
               type: "string",
               example: "Muhammad Sibtain Khan",
-              description: "User full name",
+              description: "Full name of the user being registered.",
             },
             email: {
               type: "string",
               format: "email",
-              example: "sibtain@example.com",
-              description: "User email address",
+              example: "sibtain.khan@university.edu",
+              description: "Email address to register the account with. Must be unique.",
             },
             password: {
               type: "string",
-              example: "Password123!",
-              description: "User password",
+              format: "password",
+              minLength: 8,
+              example: "SecurePass123!",
+              description: "Account password. Will be securely hashed before storage.",
             },
             role: {
-              type: "string",
-              enum: ["ADMIN", "TEACHER", "STUDENT"],
+              allOf: [{ $ref: "#/components/schemas/Role" }],
+              description: "Role to assign to the newly created user.",
               example: "ADMIN",
-              description: "User role",
             },
           },
         },
+
+        // ==========================================================
+        // STUDENT SCHEMAS
+        // ==========================================================
         CreateStudentRequest: {
           type: "object",
+          description:
+            "Payload required to create a new student. Creates an underlying User account " +
+            "(role STUDENT) together with the student's academic profile.",
           required: ["name", "email", "password", "registrationNo", "gender", "departmentId"],
           properties: {
             name: {
               type: "string",
-              example: "Muhammad Sibtain Khan",
-              description: "Student full name",
+              example: "Muhammad Ali",
+              description: "Student full name.",
             },
             email: {
               type: "string",
               format: "email",
-              example: "sibtain@example.com",
-              description: "Student email",
+              example: "muhammad.ali@university.edu",
+              description: "Student email address. Must be unique across all users.",
             },
             password: {
               type: "string",
-              example: "Password123!",
-              description: "Student password",
+              format: "password",
+              minLength: 8,
+              example: "SecurePass123!",
+              description: "Password for the student's account login.",
             },
             registrationNo: {
               type: "string",
               example: "FA22-BCS-001",
-              description: "Student registration number",
+              description:
+                "Unique student registration number. NOTE: verify this field name against the " +
+                "actual student controller/validator — the response schema below currently uses " +
+                "`registrationNumber`.",
             },
             gender: {
-              type: "string",
-              enum: ["MALE", "FEMALE", "OTHER"],
-              example: "MALE",
-              description: "Student gender",
-            },
-            departmentId: {
-              type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Department ID",
-            },
-          },
-        },
-        CreateTeacherRequest: {
-          type: "object",
-          required: ["name", "email", "password", "employeeId", "departmentId"],
-          properties: {
-            name: {
-              type: "string",
-              example: "Dr Ahmed Khan",
-              description: "Teacher full name",
-            },
-            email: {
-              type: "string",
-              format: "email",
-              example: "ahmed@example.com",
-              description: "Teacher email",
-            },
-            password: {
-              type: "string",
-              example: "Password123!",
-              description: "Teacher password",
-            },
-            employeeId: {
-              type: "string",
-              example: "EMP001",
-              description: "Teacher employee ID",
+              allOf: [{ $ref: "#/components/schemas/Gender" }],
+              description: "Student gender.",
             },
             phone: {
               type: "string",
               example: "+923001234567",
-              description: "Teacher phone number",
+              description: "Student phone number in international format.",
             },
-            designation: {
+            address: {
               type: "string",
-              example: "Lecturer",
-              description: "Teacher designation",
+              example: "House 12, Street 4, F-10, Islamabad, Pakistan",
+              description: "Student residential address.",
             },
-            qualification: {
+            dateOfBirth: {
               type: "string",
-              example: "MSc Computer Science",
-              description: "Teacher qualification",
-            },
-            joiningDate: {
-              type: "string",
-              format: "date",
-              example: "2020-01-01",
-              description: "Teacher joining date",
+              format: "date-time",
+              example: "2003-05-14T00:00:00.000Z",
+              description: "Student date of birth.",
             },
             profileImage: {
               type: "string",
-              example: "https://example.com/teacher.jpg",
-              description: "Teacher profile image URL",
-            },
-            isActive: {
-              type: "boolean",
-              example: true,
-              description: "Whether the teacher is active",
+              format: "uri",
+              example: "https://cdn.university.edu/profiles/muhammad-ali.jpg",
+              description: "URL of the student's profile image.",
             },
             departmentId: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Department ID",
-            },
-          },
-        },
-        CreateDepartmentRequest: {
-          type: "object",
-          required: ["name", "code"],
-          properties: {
-            name: {
-              type: "string",
-              example: "Computer Science",
-              description: "Department name",
-            },
-            code: {
-              type: "string",
-              example: "CS",
-              description: "Department code",
-            },
-            description: {
-              type: "string",
-              example: "Department of Computer Science",
-              description: "Department description",
-            },
-          },
-        },
-        CreateCourseRequest: {
-          type: "object",
-          required: ["name", "code", "durationYears", "totalSemesters", "departmentId"],
-          properties: {
-            name: {
-              type: "string",
-              example: "BS Computer Science",
-              description: "Course name",
-            },
-            code: {
-              type: "string",
-              example: "BSCS",
-              description: "Course code",
-            },
-            durationYears: {
-              type: "integer",
-              example: 4,
-              description: "Course duration in years",
-            },
-            totalSemesters: {
-              type: "integer",
-              example: 8,
-              description: "Total number of semesters",
-            },
-            departmentId: {
-              type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Department ID",
-            },
-          },
-        },
-        CreateSemesterRequest: {
-          type: "object",
-          required: ["name", "number", "courseId"],
-          properties: {
-            name: {
-              type: "string",
-              example: "Spring 2026",
-              description: "Semester name",
-            },
-            number: {
-              type: "integer",
-              example: 4,
-              description: "Semester number",
-            },
-            status: {
-              type: "string",
-              enum: ["UPCOMING", "ACTIVE", "COMPLETED"],
-              example: "UPCOMING",
-              description: "Semester status",
-            },
-            courseId: {
-              type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Course ID",
-            },
-          },
-        },
-        CreateSubjectRequest: {
-          type: "object",
-          required: ["name", "code", "creditHours", "semesterId"],
-          properties: {
-            name: {
-              type: "string",
-              example: "Data Structures",
-              description: "Subject name",
-            },
-            code: {
-              type: "string",
-              example: "DSA",
-              description: "Subject code",
-            },
-            creditHours: {
-              type: "integer",
-              example: 3,
-              description: "Subject credit hours",
-            },
-            description: {
-              type: "string",
-              example: "Core data structures concepts",
-              description: "Subject description",
-            },
-            semesterId: {
-              type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Semester ID",
-            },
-          },
-        },
-        CreateEnrollmentRequest: {
-          type: "object",
-          required: ["studentId", "subjectId"],
-          properties: {
-            studentId: {
-              type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Student ID",
-            },
-            subjectId: {
-              type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Subject ID",
-            },
-            status: {
-              type: "string",
-              enum: ["ENROLLED", "DROPPED", "COMPLETED"],
-              example: "ENROLLED",
-              description: "Enrollment status",
-            },
-          },
-        },
-        CreateAttendanceRequest: {
-          type: "object",
-          required: ["studentId", "subjectId", "date", "status"],
-          properties: {
-            studentId: {
-              type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Student ID",
-            },
-            subjectId: {
-              type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Subject ID",
-            },
-            date: {
-              type: "string",
-              format: "date-time",
-              example: "2024-01-15T00:00:00.000Z",
-              description: "Attendance date",
-            },
-            status: {
-              type: "string",
-              enum: ["PRESENT", "ABSENT", "LATE"],
-              example: "PRESENT",
-              description: "Attendance status",
-            },
-          },
-        },
-        CreateResultRequest: {
-          type: "object",
-          required: ["studentId", "subjectId", "marks", "totalMarks", "grade"],
-          properties: {
-            studentId: {
-              type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Student ID",
-            },
-            subjectId: {
-              type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Subject ID",
-            },
-            marks: {
-              type: "number",
-              example: 85,
-              description: "Obtained marks",
-            },
-            totalMarks: {
-              type: "number",
-              example: 100,
-              description: "Total marks",
-            },
-            grade: {
-              type: "string",
-              enum: ["A_PLUS", "A", "B_PLUS", "B", "C_PLUS", "C", "D", "F"],
-              example: "A",
-              description: "Final grade",
-            },
-            remarks: {
-              type: "string",
-              example: "Excellent performance",
-              description: "Result remarks",
-            },
-          },
-        },
-        SuccessResponse: {
-          type: "object",
-          description: "Standard success payload returned by successful create, update, delete, and read operations.",
-          example: {
-            success: true,
-            message: "Student created successfully",
-            data: {
-              id: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              name: "Ali Khan",
-              email: "ali@example.com",
-              role: "STUDENT"
-            }
-          },
-          properties: {
-            success: {
-              type: "boolean",
-              example: true,
-              description: "Indicates whether the request was successful",
-            },
-            message: {
-              type: "string",
-              example: "Student created successfully",
-              description: "Human-readable success message",
-            },
-            data: {
-              type: "object",
-              description: "Response payload containing the requested resource or operation result",
-            },
-          },
-        },
-        ErrorResponse: {
-          type: "object",
-          description: "Standard error payload returned for unauthorized, forbidden, conflict, and server-side failures.",
-          example: {
-            success: false,
-            message: "An unexpected error occurred"
-          },
-          properties: {
-            success: {
-              type: "boolean",
-              example: false,
-              description: "Indicates whether the request was successful",
-            },
-            message: {
-              type: "string",
-              example: "An unexpected error occurred",
-              description: "Error message",
-            },
-          },
-        },
-        ValidationErrorResponse: {
-          type: "object",
-          description: "Validation error payload returned when request data is invalid.",
-          example: {
-            success: false,
-            message: "Email is required"
-          },
-          properties: {
-            success: {
-              type: "boolean",
-              example: false,
-              description: "Indicates whether the request was successful",
-            },
-            message: {
-              type: "string",
-              example: "Email is required",
-              description: "Validation error detail",
-            },
-          },
-        },
-        PaginatedResponse: {
-          type: "object",
-          description: "Paginated collection response used by list endpoints.",
-          example: {
-            success: true,
-            pagination: {
-              page: 1,
-              limit: 10,
-              total: 25,
-              totalPages: 3
-            },
-            data: [
-              {
-                id: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-                name: "Ali Khan",
-                email: "ali@example.com"
-              }
-            ]
-          },
-          properties: {
-            success: {
-              type: "boolean",
-              example: true,
-              description: "Indicates whether the request was successful",
-            },
-            pagination: {
-              type: "object",
-              properties: {
-                page: {
-                  type: "integer",
-                  example: 1,
-                  description: "Current page number",
-                },
-                limit: {
-                  type: "integer",
-                  example: 10,
-                  description: "Number of items per page",
-                },
-                total: {
-                  type: "integer",
-                  example: 25,
-                  description: "Total number of records",
-                },
-                totalPages: {
-                  type: "integer",
-                  example: 3,
-                  description: "Total number of pages",
-                },
-              },
-            },
-            data: {
-              type: "array",
-              items: {
-                type: "object",
-              },
-              description: "Paginated data records",
+              example: "cljk0g7h80003qzrmbl3m8n9o",
+              description: "CUID of the department the student belongs to.",
             },
           },
         },
@@ -573,58 +306,58 @@ const options = {
           properties: {
             id: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Unique student ID",
+              example: "cljk0c3d40001qzrm7h9i4j5k",
+              description: "Unique CUID identifier for the student record.",
             },
             registrationNumber: {
               type: "string",
               example: "FA22-BCS-001",
-              description: "Student registration number",
+              description: "Unique student registration number.",
             },
             gender: {
-              type: "string",
-              enum: ["MALE", "FEMALE", "OTHER"],
-              example: "MALE",
-              description: "Student gender",
+              allOf: [{ $ref: "#/components/schemas/Gender" }],
+              description: "Student gender.",
             },
             phone: {
               type: "string",
+              nullable: true,
               example: "+923001234567",
-              description: "Student phone number",
+              description: "Student phone number in international format.",
             },
             address: {
               type: "string",
-              example: "Lahore, Pakistan",
-              description: "Student address",
+              nullable: true,
+              example: "House 12, Street 4, F-10, Islamabad, Pakistan",
+              description: "Student residential address.",
             },
             dateOfBirth: {
               type: "string",
-              format: "date",
-              example: "1999-01-01",
-              description: "Student date of birth",
+              format: "date-time",
+              nullable: true,
+              example: "2003-05-14T00:00:00.000Z",
+              description: "Student date of birth.",
             },
             profileImage: {
               type: "string",
-              example: "https://example.com/profile.jpg",
-              description: "Student profile image URL",
+              format: "uri",
+              nullable: true,
+              example: "https://cdn.university.edu/profiles/muhammad-ali.jpg",
+              description: "URL of the student's profile image.",
             },
             isActive: {
               type: "boolean",
               example: true,
-              description: "Whether the student is active",
+              description: "Whether the student account is currently active.",
             },
             userId: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Associated user ID",
+              example: "cljk0a1b20000qzrm5f8g2h3i",
+              description: "CUID of the associated user account.",
             },
             departmentId: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Associated department ID",
+              example: "cljk0g7h80003qzrmbl3m8n9o",
+              description: "CUID of the associated department.",
             },
             user: {
               $ref: "#/components/schemas/User",
@@ -635,14 +368,87 @@ const options = {
             createdAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Student creation timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the student record was created.",
             },
             updatedAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Student update timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the student record was last updated.",
+            },
+          },
+        },
+
+        // ==========================================================
+        // TEACHER SCHEMAS
+        // ==========================================================
+        CreateTeacherRequest: {
+          type: "object",
+          description:
+            "Payload required to create a new teacher. Creates an underlying User account " +
+            "(role TEACHER) together with the teacher's employment profile.",
+          required: ["name", "email", "password", "employeeId", "departmentId"],
+          properties: {
+            name: {
+              type: "string",
+              example: "Dr. Ahmed Hassan",
+              description: "Teacher full name.",
+            },
+            email: {
+              type: "string",
+              format: "email",
+              example: "ahmed.hassan@university.edu",
+              description: "Teacher email address. Must be unique across all users.",
+            },
+            password: {
+              type: "string",
+              format: "password",
+              minLength: 8,
+              example: "SecurePass123!",
+              description: "Password for the teacher's account login.",
+            },
+            employeeId: {
+              type: "string",
+              example: "EMP-2024-001",
+              description: "Unique employee identifier.",
+            },
+            phone: {
+              type: "string",
+              example: "+923001234567",
+              description: "Teacher phone number in international format.",
+            },
+            designation: {
+              type: "string",
+              example: "Assistant Professor",
+              description: "Teacher's academic designation/title.",
+            },
+            qualification: {
+              type: "string",
+              example: "PhD Computer Science",
+              description: "Teacher's highest academic qualification.",
+            },
+            joiningDate: {
+              type: "string",
+              format: "date-time",
+              example: "2020-08-15T00:00:00.000Z",
+              description: "Date the teacher joined the institution.",
+            },
+            profileImage: {
+              type: "string",
+              format: "uri",
+              example: "https://cdn.university.edu/profiles/ahmed-hassan.jpg",
+              description: "URL of the teacher's profile image.",
+            },
+            isActive: {
+              type: "boolean",
+              example: true,
+              description: "Whether the teacher account is active. Defaults to true.",
+            },
+            departmentId: {
+              type: "string",
+              example: "cljk0g7h80003qzrmbl3m8n9o",
+              description: "CUID of the department the teacher belongs to.",
             },
           },
         },
@@ -652,57 +458,60 @@ const options = {
           properties: {
             id: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Unique teacher ID",
+              example: "cljk0e5f60002qzrm9j1k6l7m",
+              description: "Unique CUID identifier for the teacher record.",
             },
             employeeId: {
               type: "string",
-              example: "EMP001",
-              description: "Teacher employee ID",
+              example: "EMP-2024-001",
+              description: "Unique employee identifier.",
             },
             phone: {
               type: "string",
+              nullable: true,
               example: "+923001234567",
-              description: "Teacher phone number",
+              description: "Teacher phone number in international format.",
             },
             designation: {
               type: "string",
-              example: "Lecturer",
-              description: "Teacher designation",
+              nullable: true,
+              example: "Assistant Professor",
+              description: "Teacher's academic designation/title.",
             },
             qualification: {
               type: "string",
-              example: "MSc Computer Science",
-              description: "Teacher qualification",
+              nullable: true,
+              example: "PhD Computer Science",
+              description: "Teacher's highest academic qualification.",
             },
             joiningDate: {
               type: "string",
-              format: "date",
-              example: "2020-01-01",
-              description: "Teacher joining date",
+              format: "date-time",
+              nullable: true,
+              example: "2020-08-15T00:00:00.000Z",
+              description: "Date the teacher joined the institution.",
             },
             profileImage: {
               type: "string",
-              example: "https://example.com/teacher.jpg",
-              description: "Teacher profile image URL",
+              format: "uri",
+              nullable: true,
+              example: "https://cdn.university.edu/profiles/ahmed-hassan.jpg",
+              description: "URL of the teacher's profile image.",
             },
             isActive: {
               type: "boolean",
               example: true,
-              description: "Whether the teacher is active",
+              description: "Whether the teacher account is currently active.",
             },
             userId: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Associated user ID",
+              example: "cljk0a1b20000qzrm5f8g2h3i",
+              description: "CUID of the associated user account.",
             },
             departmentId: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Associated department ID",
+              example: "cljk0g7h80003qzrmbl3m8n9o",
+              description: "CUID of the associated department.",
             },
             user: {
               $ref: "#/components/schemas/User",
@@ -713,14 +522,40 @@ const options = {
             createdAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Teacher creation timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the teacher record was created.",
             },
             updatedAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Teacher update timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the teacher record was last updated.",
+            },
+          },
+        },
+
+        // ==========================================================
+        // DEPARTMENT SCHEMAS
+        // ==========================================================
+        CreateDepartmentRequest: {
+          type: "object",
+          description: "Payload required to create a new academic department.",
+          required: ["name", "code"],
+          properties: {
+            name: {
+              type: "string",
+              example: "Computer Science",
+              description: "Full department name. Must be unique.",
+            },
+            code: {
+              type: "string",
+              example: "CS",
+              description: "Short unique department code.",
+            },
+            description: {
+              type: "string",
+              example: "Department of Computer Science, offering undergraduate and graduate programs in software engineering, AI, and systems.",
+              description: "Optional free-text description of the department.",
             },
           },
         },
@@ -730,36 +565,74 @@ const options = {
           properties: {
             id: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Unique department ID",
+              example: "cljk0g7h80003qzrmbl3m8n9o",
+              description: "Unique CUID identifier for the department.",
             },
             name: {
               type: "string",
               example: "Computer Science",
-              description: "Department name",
+              description: "Full department name.",
             },
             code: {
               type: "string",
               example: "CS",
-              description: "Department code",
+              description: "Short unique department code.",
             },
             description: {
               type: "string",
-              example: "Department for computer science studies",
-              description: "Department description",
+              nullable: true,
+              example: "Department of Computer Science, offering undergraduate and graduate programs in software engineering, AI, and systems.",
+              description: "Free-text description of the department.",
             },
             createdAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Department creation timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the department was created.",
             },
             updatedAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Department update timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the department was last updated.",
+            },
+          },
+        },
+
+        // ==========================================================
+        // COURSE SCHEMAS (degree programs, e.g. BS Computer Science)
+        // ==========================================================
+        CreateCourseRequest: {
+          type: "object",
+          description: "Payload required to create a new degree program (course) within a department.",
+          required: ["name", "code", "durationYears", "totalSemesters", "departmentId"],
+          properties: {
+            name: {
+              type: "string",
+              example: "BS Computer Science",
+              description: "Full name of the degree program. Must be unique.",
+            },
+            code: {
+              type: "string",
+              example: "BSCS",
+              description: "Short unique course code.",
+            },
+            durationYears: {
+              type: "integer",
+              minimum: 1,
+              example: 4,
+              description: "Duration of the degree program in years.",
+            },
+            totalSemesters: {
+              type: "integer",
+              minimum: 1,
+              example: 8,
+              description: "Total number of semesters in the degree program.",
+            },
+            departmentId: {
+              type: "string",
+              example: "cljk0g7h80003qzrmbl3m8n9o",
+              description: "CUID of the department offering this course.",
             },
           },
         },
@@ -769,35 +642,33 @@ const options = {
           properties: {
             id: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Unique course ID",
+              example: "cljk0i9j00004qzrmdn5o0p1q",
+              description: "Unique CUID identifier for the course.",
             },
             name: {
               type: "string",
-              example: "Bachelor of Computer Science",
-              description: "Course name",
+              example: "BS Computer Science",
+              description: "Full name of the degree program.",
             },
             code: {
               type: "string",
-              example: "BCS",
-              description: "Course code",
+              example: "BSCS",
+              description: "Short unique course code.",
             },
             durationYears: {
               type: "integer",
               example: 4,
-              description: "Course duration in years",
+              description: "Duration of the degree program in years.",
             },
             totalSemesters: {
               type: "integer",
               example: 8,
-              description: "Total number of semesters",
+              description: "Total number of semesters in the degree program.",
             },
             departmentId: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Associated department ID",
+              example: "cljk0g7h80003qzrmbl3m8n9o",
+              description: "CUID of the department offering this course.",
             },
             department: {
               $ref: "#/components/schemas/Department",
@@ -805,14 +676,45 @@ const options = {
             createdAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Course creation timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the course was created.",
             },
             updatedAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Course update timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the course was last updated.",
+            },
+          },
+        },
+
+        // ==========================================================
+        // SEMESTER SCHEMAS
+        // ==========================================================
+        CreateSemesterRequest: {
+          type: "object",
+          description: "Payload required to create a new semester under a course.",
+          required: ["name", "number", "courseId"],
+          properties: {
+            name: {
+              type: "string",
+              example: "Fall 2026",
+              description: "Human-readable semester name.",
+            },
+            number: {
+              type: "integer",
+              minimum: 1,
+              example: 5,
+              description: "Sequential semester number within the course (e.g. 5th semester of an 8-semester program).",
+            },
+            status: {
+              allOf: [{ $ref: "#/components/schemas/SemesterStatus" }],
+              description: "Current lifecycle status of the semester. Defaults to UPCOMING.",
+            },
+            courseId: {
+              type: "string",
+              example: "cljk0i9j00004qzrmdn5o0p1q",
+              description: "CUID of the course this semester belongs to.",
             },
           },
         },
@@ -822,43 +724,76 @@ const options = {
           properties: {
             id: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Unique semester ID",
+              example: "cljk0k1l20005qzrmfp7q2r3s",
+              description: "Unique CUID identifier for the semester.",
             },
             name: {
               type: "string",
-              example: "First Semester",
-              description: "Semester name",
+              example: "Fall 2026",
+              description: "Human-readable semester name.",
             },
             number: {
               type: "integer",
-              example: 1,
-              description: "Semester number",
+              example: 5,
+              description: "Sequential semester number within the course.",
             },
             status: {
-              type: "string",
-              enum: ["UPCOMING", "ACTIVE", "COMPLETED"],
-              example: "UPCOMING",
-              description: "Semester status",
+              allOf: [{ $ref: "#/components/schemas/SemesterStatus" }],
+              description: "Current lifecycle status of the semester.",
             },
             courseId: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Associated course ID",
+              example: "cljk0i9j00004qzrmdn5o0p1q",
+              description: "CUID of the course this semester belongs to.",
             },
             createdAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Semester creation timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the semester was created.",
             },
             updatedAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Semester update timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the semester was last updated.",
+            },
+          },
+        },
+
+        // ==========================================================
+        // SUBJECT SCHEMAS
+        // ==========================================================
+        CreateSubjectRequest: {
+          type: "object",
+          description: "Payload required to create a new subject within a semester.",
+          required: ["name", "code", "creditHours", "semesterId"],
+          properties: {
+            name: {
+              type: "string",
+              example: "Data Structures",
+              description: "Full subject name.",
+            },
+            code: {
+              type: "string",
+              example: "CS201",
+              description: "Unique subject code.",
+            },
+            creditHours: {
+              type: "integer",
+              minimum: 1,
+              example: 3,
+              description: "Number of credit hours assigned to the subject.",
+            },
+            description: {
+              type: "string",
+              example: "Covers arrays, linked lists, stacks, queues, trees, and graphs with a focus on algorithmic complexity.",
+              description: "Optional description of the subject's content.",
+            },
+            semesterId: {
+              type: "string",
+              example: "cljk0k1l20005qzrmfp7q2r3s",
+              description: "CUID of the semester this subject is taught in.",
             },
           },
         },
@@ -868,35 +803,34 @@ const options = {
           properties: {
             id: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Unique subject ID",
+              example: "cljk0m3n40006qzrmhr9s4t5u",
+              description: "Unique CUID identifier for the subject.",
             },
             name: {
               type: "string",
               example: "Data Structures",
-              description: "Subject name",
+              description: "Full subject name.",
             },
             code: {
               type: "string",
-              example: "DSA",
-              description: "Subject code",
+              example: "CS201",
+              description: "Unique subject code.",
             },
             creditHours: {
               type: "integer",
               example: 3,
-              description: "Subject credit hours",
+              description: "Number of credit hours assigned to the subject.",
             },
             description: {
               type: "string",
-              example: "Core data structures concepts",
-              description: "Subject description",
+              nullable: true,
+              example: "Covers arrays, linked lists, stacks, queues, trees, and graphs with a focus on algorithmic complexity.",
+              description: "Description of the subject's content.",
             },
             semesterId: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Associated semester ID",
+              example: "cljk0k1l20005qzrmfp7q2r3s",
+              description: "CUID of the semester this subject is taught in.",
             },
             semester: {
               $ref: "#/components/schemas/Semester",
@@ -904,14 +838,39 @@ const options = {
             createdAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Subject creation timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the subject was created.",
             },
             updatedAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Subject update timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the subject was last updated.",
+            },
+          },
+        },
+
+        // ==========================================================
+        // ENROLLMENT SCHEMAS
+        // ==========================================================
+        CreateEnrollmentRequest: {
+          type: "object",
+          description: "Payload required to enroll a student in a subject.",
+          required: ["studentId", "subjectId"],
+          properties: {
+            studentId: {
+              type: "string",
+              example: "cljk0c3d40001qzrm7h9i4j5k",
+              description: "CUID of the student being enrolled.",
+            },
+            subjectId: {
+              type: "string",
+              example: "cljk0m3n40006qzrmhr9s4t5u",
+              description: "CUID of the subject the student is enrolling in.",
+            },
+            status: {
+              allOf: [{ $ref: "#/components/schemas/EnrollmentStatus" }],
+              description: "Initial enrollment status. Defaults to ENROLLED.",
             },
           },
         },
@@ -921,45 +880,71 @@ const options = {
           properties: {
             id: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Unique enrollment ID",
+              example: "cljk0o5p60007qzrmjt1u6v7w",
+              description: "Unique CUID identifier for the enrollment record.",
             },
             studentId: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Associated student ID",
+              example: "cljk0c3d40001qzrm7h9i4j5k",
+              description: "CUID of the enrolled student.",
             },
             subjectId: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Associated subject ID",
+              example: "cljk0m3n40006qzrmhr9s4t5u",
+              description: "CUID of the subject enrolled in.",
             },
             status: {
-              type: "string",
-              enum: ["ENROLLED", "DROPPED", "COMPLETED"],
-              example: "ENROLLED",
-              description: "Enrollment status",
+              allOf: [{ $ref: "#/components/schemas/EnrollmentStatus" }],
+              description: "Current enrollment status.",
             },
             enrolledAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-15T00:00:00.000Z",
-              description: "Enrollment date",
+              example: "2026-01-20T08:00:00.000Z",
+              description: "Timestamp when the student was enrolled.",
             },
             createdAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Enrollment creation timestamp",
+              example: "2026-01-20T08:00:00.000Z",
+              description: "Timestamp when the enrollment record was created.",
             },
             updatedAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Enrollment update timestamp",
+              example: "2026-01-20T08:00:00.000Z",
+              description: "Timestamp when the enrollment record was last updated.",
+            },
+          },
+        },
+
+        // ==========================================================
+        // ATTENDANCE SCHEMAS
+        // ==========================================================
+        CreateAttendanceRequest: {
+          type: "object",
+          description: "Payload required to record a student's attendance for a subject on a given date.",
+          required: ["studentId", "subjectId", "date", "status"],
+          properties: {
+            studentId: {
+              type: "string",
+              example: "cljk0c3d40001qzrm7h9i4j5k",
+              description: "CUID of the student whose attendance is being recorded.",
+            },
+            subjectId: {
+              type: "string",
+              example: "cljk0m3n40006qzrmhr9s4t5u",
+              description: "CUID of the subject the attendance record applies to.",
+            },
+            date: {
+              type: "string",
+              format: "date-time",
+              example: "2026-07-15T00:00:00.000Z",
+              description: "Date the attendance was recorded for.",
+            },
+            status: {
+              allOf: [{ $ref: "#/components/schemas/AttendanceStatus" }],
+              description: "Attendance status for the student on this date.",
             },
           },
         },
@@ -969,45 +954,82 @@ const options = {
           properties: {
             id: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Unique attendance ID",
+              example: "cljk0q7r80008qzrmlv3w8x9y",
+              description: "Unique CUID identifier for the attendance record.",
             },
             studentId: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Associated student ID",
+              example: "cljk0c3d40001qzrm7h9i4j5k",
+              description: "CUID of the student this attendance record belongs to.",
             },
             subjectId: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Associated subject ID",
+              example: "cljk0m3n40006qzrmhr9s4t5u",
+              description: "CUID of the subject this attendance record belongs to.",
             },
             date: {
               type: "string",
               format: "date-time",
-              example: "2024-01-15T00:00:00.000Z",
-              description: "Attendance date",
+              example: "2026-07-15T00:00:00.000Z",
+              description: "Date the attendance was recorded for.",
             },
             status: {
-              type: "string",
-              enum: ["PRESENT", "ABSENT", "LATE"],
-              example: "PRESENT",
-              description: "Attendance status",
+              allOf: [{ $ref: "#/components/schemas/AttendanceStatus" }],
+              description: "Attendance status recorded.",
             },
             createdAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Attendance creation timestamp",
+              example: "2026-07-15T09:05:00.000Z",
+              description: "Timestamp when the attendance record was created.",
             },
             updatedAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Attendance update timestamp",
+              example: "2026-07-15T09:05:00.000Z",
+              description: "Timestamp when the attendance record was last updated.",
+            },
+          },
+        },
+
+        // ==========================================================
+        // RESULT SCHEMAS
+        // ==========================================================
+        CreateResultRequest: {
+          type: "object",
+          description: "Payload required to record a student's assessment result for a subject.",
+          required: ["studentId", "subjectId", "marks", "totalMarks", "grade"],
+          properties: {
+            studentId: {
+              type: "string",
+              example: "cljk0c3d40001qzrm7h9i4j5k",
+              description: "CUID of the student the result belongs to.",
+            },
+            subjectId: {
+              type: "string",
+              example: "cljk0m3n40006qzrmhr9s4t5u",
+              description: "CUID of the subject the result belongs to.",
+            },
+            marks: {
+              type: "number",
+              minimum: 0,
+              example: 85,
+              description: "Marks obtained by the student.",
+            },
+            totalMarks: {
+              type: "number",
+              minimum: 0,
+              example: 100,
+              description: "Total marks the assessment was out of.",
+            },
+            grade: {
+              allOf: [{ $ref: "#/components/schemas/Grade" }],
+              description: "Final letter grade awarded.",
+            },
+            remarks: {
+              type: "string",
+              example: "Excellent performance throughout the semester.",
+              description: "Optional remarks about the student's performance.",
             },
           },
         },
@@ -1017,56 +1039,205 @@ const options = {
           properties: {
             id: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Unique result ID",
+              example: "cljk0s9t00009qzrmnx5y0z1a",
+              description: "Unique CUID identifier for the result record.",
             },
             studentId: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Associated student ID",
+              example: "cljk0c3d40001qzrm7h9i4j5k",
+              description: "CUID of the student the result belongs to.",
             },
             subjectId: {
               type: "string",
-              format: "uuid",
-              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              description: "Associated subject ID",
+              example: "cljk0m3n40006qzrmhr9s4t5u",
+              description: "CUID of the subject the result belongs to.",
             },
             marks: {
               type: "number",
               example: 85,
-              description: "Obtained marks",
+              description: "Marks obtained by the student.",
             },
             totalMarks: {
               type: "number",
               example: 100,
-              description: "Total marks",
+              description: "Total marks the assessment was out of.",
             },
             grade: {
-              type: "string",
-              enum: ["A_PLUS", "A", "B_PLUS", "B", "C_PLUS", "C", "D", "F"],
-              example: "A",
-              description: "Final grade",
+              allOf: [{ $ref: "#/components/schemas/Grade" }],
+              description: "Final letter grade awarded.",
             },
             remarks: {
               type: "string",
-              example: "Excellent performance",
-              description: "Result remarks",
+              nullable: true,
+              example: "Excellent performance throughout the semester.",
+              description: "Remarks about the student's performance.",
             },
             createdAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Result creation timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the result record was created.",
             },
             updatedAt: {
               type: "string",
               format: "date-time",
-              example: "2024-01-01T00:00:00.000Z",
-              description: "Result update timestamp",
+              example: "2026-01-15T09:30:00.000Z",
+              description: "Timestamp when the result record was last updated.",
             },
           },
+        },
+
+        // ==========================================================
+        // GENERIC SUCCESS / PAGINATION WRAPPERS
+        // ==========================================================
+        SuccessResponse: {
+          type: "object",
+          description: "Standard success payload returned by successful create, update, delete, and read operations.",
+          properties: {
+            success: {
+              type: "boolean",
+              example: true,
+              description: "Indicates whether the request was successful.",
+            },
+            message: {
+              type: "string",
+              example: "Student created successfully.",
+              description: "Human-readable success message.",
+            },
+            data: {
+              type: "object",
+              description: "Response payload containing the requested resource or operation result.",
+            },
+          },
+          example: {
+            success: true,
+            message: "Student created successfully.",
+            data: {
+              id: "cljk0c3d40001qzrm7h9i4j5k",
+              registrationNumber: "FA22-BCS-001",
+              gender: "MALE",
+              departmentId: "cljk0g7h80003qzrmbl3m8n9o",
+            },
+          },
+        },
+        PaginatedResponse: {
+          type: "object",
+          description: "Paginated collection response used by list endpoints.",
+          properties: {
+            success: {
+              type: "boolean",
+              example: true,
+              description: "Indicates whether the request was successful.",
+            },
+            pagination: {
+              type: "object",
+              properties: {
+                page: {
+                  type: "integer",
+                  example: 1,
+                  description: "Current page number.",
+                },
+                limit: {
+                  type: "integer",
+                  example: 10,
+                  description: "Number of items returned per page.",
+                },
+                total: {
+                  type: "integer",
+                  example: 42,
+                  description: "Total number of records matching the query.",
+                },
+                totalPages: {
+                  type: "integer",
+                  example: 5,
+                  description: "Total number of pages available.",
+                },
+              },
+            },
+            data: {
+              type: "array",
+              items: { type: "object" },
+              description: "Array of records for the current page.",
+            },
+          },
+          example: {
+            success: true,
+            pagination: { page: 1, limit: 10, total: 42, totalPages: 5 },
+            data: [
+              {
+                id: "cljk0c3d40001qzrm7h9i4j5k",
+                registrationNumber: "FA22-BCS-001",
+                gender: "MALE",
+              },
+            ],
+          },
+        },
+
+        // ==========================================================
+        // ERROR RESPONSE SCHEMAS
+        // ==========================================================
+        ErrorResponse: {
+          type: "object",
+          description: "Generic error payload returned for unexpected server-side failures.",
+          properties: {
+            success: { type: "boolean", example: false, description: "Always false for error responses." },
+            message: { type: "string", example: "An unexpected error occurred.", description: "Error message." },
+          },
+          example: { success: false, message: "An unexpected error occurred." },
+        },
+        ValidationErrorResponse: {
+          type: "object",
+          description: "Returned when request body, params, or query fail schema/Joi validation (422).",
+          properties: {
+            success: { type: "boolean", example: false },
+            message: { type: "string", example: "\"email\" is required." },
+          },
+          example: { success: false, message: "\"email\" is required." },
+        },
+        UnauthorizedResponse: {
+          type: "object",
+          description: "Returned when the request is missing a valid JWT or the token has expired (401).",
+          properties: {
+            success: { type: "boolean", example: false },
+            message: { type: "string", example: "Authentication token is missing or invalid." },
+          },
+          example: { success: false, message: "Authentication token is missing or invalid." },
+        },
+        ForbiddenResponse: {
+          type: "object",
+          description: "Returned when the authenticated user's role does not permit this action (403).",
+          properties: {
+            success: { type: "boolean", example: false },
+            message: { type: "string", example: "You do not have permission to perform this action." },
+          },
+          example: { success: false, message: "You do not have permission to perform this action." },
+        },
+        NotFoundResponse: {
+          type: "object",
+          description: "Returned when the requested resource does not exist (404).",
+          properties: {
+            success: { type: "boolean", example: false },
+            message: { type: "string", example: "Resource not found." },
+          },
+          example: { success: false, message: "Resource not found." },
+        },
+        ConflictResponse: {
+          type: "object",
+          description: "Returned when the request conflicts with existing data, e.g. a duplicate unique field (409).",
+          properties: {
+            success: { type: "boolean", example: false },
+            message: { type: "string", example: "A record with this value already exists." },
+          },
+          example: { success: false, message: "A record with this value already exists." },
+        },
+        InternalServerErrorResponse: {
+          type: "object",
+          description: "Returned when an unhandled server-side error occurs (500).",
+          properties: {
+            success: { type: "boolean", example: false },
+            message: { type: "string", example: "Internal server error. Please try again later." },
+          },
+          example: { success: false, message: "Internal server error. Please try again later." },
         },
       },
     },

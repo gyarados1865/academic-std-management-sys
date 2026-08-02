@@ -14,41 +14,62 @@ const router = Router();
  * /api/auth/register:
  *   post:
  *     summary: Register a new user
- *     description: Creates a new user account for the system.
+ *     description: >
+ *       Creates a new user account with the specified role (ADMIN, TEACHER, or STUDENT).
+ *       This is a general-purpose account registration endpoint — creating a full
+ *       student or teacher academic profile (with department, registration number, etc.)
+ *       is handled separately via the Students/Teachers endpoints.
  *     tags:
  *       - Authentication
  *     operationId: registerUser
+ *     security: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/CreateStudentRequest'
+ *             $ref: '#/components/schemas/RegisterRequest'
  *     responses:
  *       201:
- *         description: User registered successfully
+ *         description: User registered successfully.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: "User registered successfully."
+ *               data:
+ *                 id: "cljk0a1b20000qzrm5f8g2h3i"
+ *                 name: "Muhammad Sibtain Khan"
+ *                 email: "sibtain.khan@university.edu"
+ *                 role: "ADMIN"
+ *                 createdAt: "2026-01-15T09:30:00.000Z"
+ *                 updatedAt: "2026-01-15T09:30:00.000Z"
  *       400:
- *         description: Validation error
+ *         description: Validation error — one or more fields failed validation.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ValidationErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "\"email\" must be a valid email address."
  *       409:
- *         description: User already exists
+ *         description: A user with this email address already exists.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ConflictResponse'
+ *             example:
+ *               success: false
+ *               message: "A user with this email already exists."
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.post("/register", register);
 
@@ -57,10 +78,11 @@ router.post("/register", register);
  * /api/auth/login:
  *   post:
  *     summary: Login user
- *     description: Authenticates a user and returns a JWT token for subsequent requests.
+ *     description: Authenticates a user with email and password, returning a JWT access token for use on subsequent requests.
  *     tags:
  *       - Authentication
  *     operationId: loginUser
+ *     security: []
  *     requestBody:
  *       required: true
  *       content:
@@ -69,29 +91,45 @@ router.post("/register", register);
  *             $ref: '#/components/schemas/LoginRequest'
  *     responses:
  *       200:
- *         description: Login successful
+ *         description: Login successful.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: "Login successful."
+ *               data:
+ *                 token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNsamsCM..."
+ *                 user:
+ *                   id: "cljk0a1b20000qzrm5f8g2h3i"
+ *                   name: "Muhammad Ali"
+ *                   email: "muhammad.ali@university.edu"
+ *                   role: "STUDENT"
  *       400:
- *         description: Validation error
+ *         description: Validation error — one or more fields failed validation.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ValidationErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "\"password\" is required."
  *       401:
- *         description: Invalid credentials
+ *         description: Email or password is incorrect.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
+ *             example:
+ *               success: false
+ *               message: "Invalid email or password."
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.post("/login", validate(loginSchema), login);
 
@@ -100,7 +138,7 @@ router.post("/login", validate(loginSchema), login);
  * /api/auth/me:
  *   get:
  *     summary: Get authenticated user profile
- *     description: Returns the profile of the currently authenticated user.
+ *     description: Returns the profile of the currently authenticated user, based on the JWT provided in the Authorization header.
  *     tags:
  *       - Authentication
  *     operationId: getAuthenticatedUser
@@ -108,23 +146,45 @@ router.post("/login", validate(loginSchema), login);
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Profile retrieved successfully
+ *         description: Profile retrieved successfully.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/SuccessResponse'
+ *               type: object
+ *               description: >
+ *                 Note: this endpoint returns the authenticated user under a `user` key,
+ *                 not the standard `data` envelope used elsewhere in this API.
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Protected route accessed successfully"
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *             example:
+ *               success: true
+ *               message: "Protected route accessed successfully"
+ *               user:
+ *                 id: "cljk0a1b20000qzrm5f8g2h3i"
+ *                 name: "Muhammad Ali"
+ *                 email: "muhammad.ali@university.edu"
+ *                 role: "STUDENT"
+ *                 createdAt: "2026-01-15T09:30:00.000Z"
+ *                 updatedAt: "2026-01-15T09:30:00.000Z"
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.get("/me", authenticate, (req, res) => {
   res.status(200).json({
@@ -139,7 +199,7 @@ router.get("/me", authenticate, (req, res) => {
  * /api/auth/admin:
  *   get:
  *     summary: Access admin-only route
- *     description: Grants access to admin-only resources.
+ *     description: Sample protected route that grants access only to authenticated users with the ADMIN role.
  *     tags:
  *       - Authentication
  *     operationId: accessAdminRoute
@@ -147,29 +207,39 @@ router.get("/me", authenticate, (req, res) => {
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Admin access granted
+ *         description: Admin access granted.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/SuccessResponse'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Welcome Admin"
+ *             example:
+ *               success: true
+ *               message: "Welcome Admin"
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have the ADMIN role.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.get(
   "/admin",
@@ -188,7 +258,7 @@ router.get(
  * /api/auth/teacher:
  *   get:
  *     summary: Access teacher route
- *     description: Grants access to teacher and admin users.
+ *     description: Sample protected route that grants access to authenticated users with the ADMIN or TEACHER role.
  *     tags:
  *       - Authentication
  *     operationId: accessTeacherRoute
@@ -196,29 +266,39 @@ router.get(
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Teacher access granted
+ *         description: Teacher access granted.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/SuccessResponse'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Welcome Teacher"
+ *             example:
+ *               success: true
+ *               message: "Welcome Teacher"
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have the ADMIN or TEACHER role.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.get(
   "/teacher",
@@ -237,7 +317,7 @@ router.get(
  * /api/auth/student:
  *   get:
  *     summary: Access student route
- *     description: Grants access to student users.
+ *     description: Sample protected route that grants access only to authenticated users with the STUDENT role.
  *     tags:
  *       - Authentication
  *     operationId: accessStudentRoute
@@ -245,29 +325,39 @@ router.get(
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Student access granted
+ *         description: Student access granted.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/SuccessResponse'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Welcome Student"
+ *             example:
+ *               success: true
+ *               message: "Welcome Student"
  *       401:
- *         description: Unauthorized
+ *         description: Missing or invalid JWT access token.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/UnauthorizedResponse'
  *       403:
- *         description: Forbidden
+ *         description: Authenticated user does not have the STUDENT role.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ForbiddenResponse'
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/InternalServerErrorResponse'
  */
 router.get(
   "/student",
